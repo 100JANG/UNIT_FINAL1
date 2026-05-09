@@ -1,0 +1,10 @@
+unit:
+  firebase:
+    enabled: false
+  jwt:
+    secret: TEST_SECRET_AT_LEAST_32_BYTES_LONG_FOR_HMAC_SHA256
+    issuer: unit-api-test
+    session-ttl-seconds: 3600
+logging:
+  level:
+    kr.unit.backend: WARN

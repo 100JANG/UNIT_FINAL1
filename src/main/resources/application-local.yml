@@ -1,0 +1,6 @@
+unit:
+  firebase:
+    enabled: false
+logging:
+  level:
+    kr.unit.backend: DEBUG

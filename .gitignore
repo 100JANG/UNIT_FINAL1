@@ -1,0 +1,30 @@
+# Build
+build/
+out/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit
+.env
+.env.*
+firebase-credentials.json
+serviceAccountKey.json
+*.serviceaccount.json
+src/main/resources/firebase/*.json
+src/main/resources/secrets/
+
+# Logs
+logs/
+*.log
