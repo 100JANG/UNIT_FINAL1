@@ -7,6 +7,8 @@
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PlaceholderScreen } from '../screens/v2/PlaceholderScreen';
+import MannerGradeV2 from '../screens/v2/MannerGradeScreen';
+import MannerLadderV2 from '../screens/v2/MannerLadderScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -70,21 +72,32 @@ const ROUTES: { name: keyof UnitV2ParamList; spec?: string }[] = [
   { name: 'MannerLadder' },
 ];
 
+// Real screens registered per route — fall back to PlaceholderScreen otherwise
+const REAL_SCREENS: Partial<
+  Record<keyof UnitV2ParamList, React.ComponentType<any>>
+> = {
+  MannerGrade: MannerGradeV2,
+  MannerLadder: MannerLadderV2,
+};
+
 export default function UnitV2Stack() {
   return (
     <Stack.Navigator
       initialRouteName="Splash"
       screenOptions={{ headerShown: false }}
     >
-      {ROUTES.map(({ name, spec }) => (
-        <Stack.Screen
-          key={name}
-          name={name as keyof UnitV2ParamList}
-          options={getOptions(name)}
-        >
-          {() => <PlaceholderScreen routeName={name} spec={spec} />}
-        </Stack.Screen>
-      ))}
+      {ROUTES.map(({ name, spec }) => {
+        const Real = REAL_SCREENS[name];
+        return (
+          <Stack.Screen
+            key={name}
+            name={name as keyof UnitV2ParamList}
+            options={getOptions(name)}
+          >
+            {() => (Real ? <Real /> : <PlaceholderScreen routeName={name} spec={spec} />)}
+          </Stack.Screen>
+        );
+      })}
     </Stack.Navigator>
   );
 }
