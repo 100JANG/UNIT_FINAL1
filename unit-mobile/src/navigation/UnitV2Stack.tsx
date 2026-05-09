@@ -40,6 +40,9 @@ import ContestV2 from '../screens/v2/ContestScreen';
 import JobsV2 from '../screens/v2/JobsScreen';
 import MarketV2 from '../screens/v2/MarketScreen';
 import FriendsV2 from '../screens/v2/FriendsScreen';
+import JuryV2 from '../screens/v2/JuryScreen';
+import NotificationsV2 from '../screens/v2/NotificationsScreen';
+import ProfileV2 from '../screens/v2/ProfileScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -138,6 +141,9 @@ const REAL_SCREENS: Partial<
   Jobs: JobsV2,
   Market: MarketV2,
   Friends: FriendsV2,
+  Jury: JuryV2,
+  Notifications: NotificationsV2,
+  Profile: ProfileV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };
