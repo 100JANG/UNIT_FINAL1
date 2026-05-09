@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
   AppBar,
@@ -14,20 +14,45 @@ import {
 import { C, F, R, SHADOW, SP } from '../../theme/tokens';
 import type { UnitV2ParamList } from '../../types/unit-v2';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFeedPosts } from '../../hooks/useFeedPosts';
+import type { FeedScope } from '../../services/api/feedApi';
+import type { PostSummary } from '../../services/api/mappers/postMapper';
 
 type Nav = NativeStackNavigationProp<UnitV2ParamList>;
 
-const POSTS = [
-  { id: 1, board: '자유', title: '기숙사 식단 이번 학기부터 바뀐 거 어때요?', body: '아침에 시리얼 코너 사라지고 토스트 추가됐는데, 점심은 그대로인 것 같음.', nick: '익명', time: '12분 전', up: 24, cmt: 18, scrap: 4 },
-  { id: 2, board: '학사', title: '수강신청 서버 또 터질까요', body: '오늘 밤 12시 1차 수강신청인데 작년 기억이 떠올라서 미리 글 남깁니다…', nick: '익명', time: '32분 전', up: 56, cmt: 41, scrap: 12 },
-  { id: 3, board: '시험', title: '중간고사 기간 도서관 자리 어디가 제일 낫나요', body: '중도 4층 자리 거의 다 차 있고, 공대 별관은 의외로 한산하더라고요.', nick: '익명', time: '1시간 전', up: 12, cmt: 9, scrap: 2 },
-  { id: 4, board: '자취', title: '자취방 계약할 때 조심할 점 공유합니다', body: '관리비 항목, 옵션 가구 상태, 누수 흔적, 결로 자국 — 이 네 가지는 꼭 확인하세요.', nick: '익명', time: '2시간 전', up: 89, cmt: 23, scrap: 47 },
-  { id: 5, board: '학과', title: '데이터분석개론 팀플 멤버 구합니다', body: '수금 강의 듣는 분 중에 마지막 발표 같이 하실 분 한 분만 더 구해요.', nick: '익명', time: '3시간 전', up: 5, cmt: 7, scrap: 0 },
+// Mock fallback. Used only when the live API has not yet returned a successful
+// response for the current scope. Do NOT use in production once auth is wired —
+// see docs/integration/01_FEED_API_CONNECTION_REPORT.md.
+const FALLBACK_POSTS: PostSummary[] = [
+  { postId: 'mock_1', boardId: 'free',  boardName: '자유', title: '기숙사 식단 이번 학기부터 바뀐 거 어때요?', preview: '아침에 시리얼 코너 사라지고 토스트 추가됐는데, 점심은 그대로인 것 같음.', author: { anonymousId: '익명' }, createdAt: '2026-05-10T07:30:00Z', stats: { likes: 24, comments: 18, scraps: 4 } },
+  { postId: 'mock_2', boardId: 'study', boardName: '학사', title: '수강신청 서버 또 터질까요',                  preview: '오늘 밤 12시 1차 수강신청인데 작년 기억이 떠올라서 미리 글 남깁니다…',           author: { anonymousId: '익명' }, createdAt: '2026-05-10T07:00:00Z', stats: { likes: 56, comments: 41, scraps: 12 } },
 ];
+
+const TAB_TO_SCOPE: Record<string, FeedScope> = {
+  all: 'all',
+  mine: 'school',
+  dept: 'department',
+};
+
+function formatRelative(iso: string): string {
+  const d = new Date(iso);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (Number.isNaN(diff)) return '';
+  if (diff < 60) return '방금 전';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  return `${Math.floor(diff / 86400)}일 전`;
+}
 
 export default function FeedV2() {
   const navigation = useNavigation<Nav>();
-  const [board, setBoard] = useState('all');
+  const [tab, setTab] = useState<keyof typeof TAB_TO_SCOPE>('all');
+  const scope = TAB_TO_SCOPE[tab];
+
+  const { status, posts, error, hasMore, isLoadingMore, loadMore, refetch } = useFeedPosts({ scope });
+
+  // mock fallback only while we have no API success yet for this scope.
+  const data = useMemo(() => (status === 'success' ? posts : FALLBACK_POSTS), [status, posts]);
 
   return (
     <Screen
@@ -52,8 +77,8 @@ export default function FeedV2() {
             { id: 'mine', label: '내학교' },
             { id: 'dept', label: '내학과' },
           ]}
-          active={board}
-          onChange={setBoard}
+          active={tab}
+          onChange={(id) => setTab(id as keyof typeof TAB_TO_SCOPE)}
         />
         <Pressable style={styles.sortBtn}>
           <Text style={styles.sortText}>최신순</Text>
@@ -61,36 +86,85 @@ export default function FeedV2() {
         </Pressable>
       </View>
 
-      <FlatList
-        data={POSTS}
-        keyExtractor={(p) => p.id.toString()}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => navigation.navigate('PostDetail', { id: item.id })}
-            style={({ pressed }) => [
-              styles.card,
-              SHADOW.card,
-              pressed && { backgroundColor: C.surface },
-            ]}
-          >
-            <View style={styles.cardHead}>
-              <Pill>{item.board}</Pill>
-              <Text style={styles.metaText}>{item.nick} · {item.time}</Text>
-            </View>
-            <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
-            <View style={styles.statRow}>
-              <Text style={[styles.stat, { color: C.inkNavy, fontFamily: F.familySemiBold }]}>
-                👍 {item.up}
-              </Text>
-              <Text style={styles.stat}>💬 {item.cmt}</Text>
-              <Text style={styles.stat}>🔖 {item.scrap}</Text>
-            </View>
+      {status === 'loading' && (
+        <View style={styles.center}>
+          <ActivityIndicator />
+        </View>
+      )}
+
+      {status === 'business-rule' && (
+        <View style={styles.center}>
+          <Text style={styles.stateTitle}>학교/학과 정보가 등록되지 않았습니다</Text>
+          <Text style={styles.stateBody}>{error?.message ?? '프로필에서 학교와 학과를 먼저 설정해주세요.'}</Text>
+        </View>
+      )}
+
+      {status === 'error' && (
+        <View style={styles.center}>
+          <Text style={styles.stateTitle}>피드를 불러오지 못했습니다</Text>
+          <Text style={styles.stateBody}>{error?.message ?? '잠시 후 다시 시도해주세요.'}</Text>
+          <Pressable onPress={refetch} style={styles.retryBtn}>
+            <Text style={styles.retryText}>다시 시도</Text>
           </Pressable>
+        </View>
+      )}
+
+      {status === 'empty' && (
+        <View style={styles.center}>
+          <Text style={styles.stateTitle}>아직 글이 없어요</Text>
+          <Text style={styles.stateBody}>첫 번째 글을 작성해보세요.</Text>
+        </View>
+      )}
+
+      {(status === 'success' || status === 'idle') && (
+          <FlatList
+            data={data}
+            keyExtractor={(p) => p.postId}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => {
+                  // PostDetail still expects { postId: number } in the legacy stack.
+                  // Numeric coercion fails for string ids — guard until detail screen is migrated
+                  // (tracked in docs/integration/02_REMAINING_CONNECTION_PLAN.md).
+                  const numericId = Number(item.postId);
+                  if (!Number.isNaN(numericId)) {
+                    navigation.navigate('PostDetail', { postId: numericId } as never);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.card,
+                  SHADOW.card,
+                  pressed && { backgroundColor: C.surface },
+                ]}
+              >
+                <View style={styles.cardHead}>
+                  <Pill>{item.boardName ?? item.boardId}</Pill>
+                  <Text style={styles.metaText}>
+                    {item.author.anonymousId} · {formatRelative(item.createdAt)}
+                  </Text>
+                </View>
+                <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+                <Text style={styles.body} numberOfLines={2}>{item.preview}</Text>
+                <View style={styles.statRow}>
+                  <Text style={[styles.stat, { color: C.inkNavy, fontFamily: F.familySemiBold }]}>
+                    👍 {item.stats.likes}
+                  </Text>
+                  <Text style={styles.stat}>💬 {item.stats.comments}</Text>
+                  <Text style={styles.stat}>🔖 {item.stats.scraps}</Text>
+                </View>
+              </Pressable>
+            )}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+            contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
+            onEndReachedThreshold={0.4}
+            onEndReached={() => { if (status === 'success' && hasMore) loadMore(); }}
+            ListFooterComponent={
+              isLoadingMore ? (
+                <View style={{ paddingVertical: 16 }}><ActivityIndicator /></View>
+              ) : null
+            }
+          />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
-      />
     </Screen>
   );
 }
@@ -144,4 +218,23 @@ const styles = StyleSheet.create({
   },
   statRow: { flexDirection: 'row', gap: SP[4] },
   stat: { fontSize: F.size.sm, color: C.textMeta },
+
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SP[6],
+    paddingVertical: SP[8],
+    gap: 6,
+  },
+  stateTitle: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text },
+  stateBody: { fontSize: F.size.sm, color: C.textMeta, textAlign: 'center' },
+  retryBtn: {
+    marginTop: SP[3],
+    paddingHorizontal: SP[4],
+    paddingVertical: SP[2],
+    backgroundColor: C.inkNavy,
+    borderRadius: R.md,
+  },
+  retryText: { color: C.white, fontFamily: F.familySemiBold, fontSize: F.size.sm },
 });
