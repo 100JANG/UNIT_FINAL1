@@ -9,6 +9,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PlaceholderScreen } from '../screens/v2/PlaceholderScreen';
 import MannerGradeV2 from '../screens/v2/MannerGradeScreen';
 import MannerLadderV2 from '../screens/v2/MannerLadderScreen';
+import SplashV2 from '../screens/v2/SplashScreen';
+import SchoolSelectV2 from '../screens/v2/SchoolSelectScreen';
+import LoginV2 from '../screens/v2/LoginScreen';
+import EmailVerifyV2 from '../screens/v2/EmailVerifyScreen';
+import ProfileSetupV2 from '../screens/v2/ProfileSetupScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -76,6 +81,11 @@ const ROUTES: { name: keyof UnitV2ParamList; spec?: string }[] = [
 const REAL_SCREENS: Partial<
   Record<keyof UnitV2ParamList, React.ComponentType<any>>
 > = {
+  Splash: SplashV2,
+  SchoolSelect: SchoolSelectV2,
+  Login: LoginV2,
+  EmailVerify: EmailVerifyV2,
+  ProfileSetup: ProfileSetupV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };
