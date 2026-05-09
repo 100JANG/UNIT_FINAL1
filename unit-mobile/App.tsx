@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
 import RootNavigator from './src/navigation/RootNavigator';
+import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -29,10 +30,21 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <ThemeProvider>
+        <Shell />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function Shell() {
+  const { theme } = useTheme();
+  return (
+    <>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
       <NavigationContainer>
         <RootNavigator />
       </NavigationContainer>
-    </SafeAreaProvider>
+    </>
   );
 }
