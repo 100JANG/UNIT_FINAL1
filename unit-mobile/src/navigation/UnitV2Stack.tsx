@@ -26,6 +26,12 @@ import CommentThreadV2 from '../screens/v2/CommentThreadScreen';
 import SettingsV2 from '../screens/v2/SettingsScreen';
 import NotificationSettingsV2 from '../screens/v2/NotificationSettingsScreen';
 import AccountSettingsV2 from '../screens/v2/AccountSettingsScreen';
+import CampusHubV2 from '../screens/v2/CampusHubScreen';
+import TimetableV2 from '../screens/v2/TimetableScreen';
+import MealV2 from '../screens/v2/MealScreen';
+import BusV2 from '../screens/v2/BusScreen';
+import LibraryV2 from '../screens/v2/LibraryScreen';
+import ContactsV2 from '../screens/v2/ContactsScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -110,6 +116,12 @@ const REAL_SCREENS: Partial<
   Settings: SettingsV2,
   NotificationSettings: NotificationSettingsV2,
   AccountSettings: AccountSettingsV2,
+  CampusHub: CampusHubV2,
+  Timetable: TimetableV2,
+  Meal: MealV2,
+  Bus: BusV2,
+  Library: LibraryV2,
+  Contacts: ContactsV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };
