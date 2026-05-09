@@ -32,6 +32,10 @@ import MealV2 from '../screens/v2/MealScreen';
 import BusV2 from '../screens/v2/BusScreen';
 import LibraryV2 from '../screens/v2/LibraryScreen';
 import ContactsV2 from '../screens/v2/ContactsScreen';
+import MarketWriteV2 from '../screens/v2/MarketWriteScreen';
+import MarketDetailV2 from '../screens/v2/MarketDetailScreen';
+import JobDetailV2 from '../screens/v2/JobDetailScreen';
+import ContestDetailV2 from '../screens/v2/ContestDetailScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -122,6 +126,10 @@ const REAL_SCREENS: Partial<
   Bus: BusV2,
   Library: LibraryV2,
   Contacts: ContactsV2,
+  MarketWrite: MarketWriteV2,
+  MarketDetail: MarketDetailV2,
+  JobDetail: JobDetailV2,
+  ContestDetail: ContestDetailV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };
