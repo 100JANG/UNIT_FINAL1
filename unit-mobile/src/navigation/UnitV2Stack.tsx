@@ -23,6 +23,9 @@ import FriendRequestsV2 from '../screens/v2/FriendRequestsScreen';
 import ReportV2 from '../screens/v2/ReportScreen';
 import BlockListV2 from '../screens/v2/BlockListScreen';
 import CommentThreadV2 from '../screens/v2/CommentThreadScreen';
+import SettingsV2 from '../screens/v2/SettingsScreen';
+import NotificationSettingsV2 from '../screens/v2/NotificationSettingsScreen';
+import AccountSettingsV2 from '../screens/v2/AccountSettingsScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -104,6 +107,9 @@ const REAL_SCREENS: Partial<
   Report: ReportV2,
   BlockList: BlockListV2,
   CommentThread: CommentThreadV2,
+  Settings: SettingsV2,
+  NotificationSettings: NotificationSettingsV2,
+  AccountSettings: AccountSettingsV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };
