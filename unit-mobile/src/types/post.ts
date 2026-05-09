@@ -37,6 +37,32 @@ export type CommentDto = {
   deleted: boolean;
 };
 
+/** Response of POST /v1/posts/{postId}/like (toggle).
+ *  NOTE: contract uses `likes` (not `totalLikes`). See cycle 5 report. */
+export type PostLikeResponseDto = {
+  postId: string;
+  liked: boolean;
+  likes: number;
+};
+
+/** Response of POST /v1/posts/{postId}/scrap (toggle). */
+export type PostScrapResponseDto = {
+  postId: string;
+  scrapped: boolean;
+  totalScraps: number;
+};
+
+/** UI state surfaced by usePostActions. Field names are parallel
+ *  (likeCount/scrapCount) so the action row can render both uniformly. */
+export type PostActionState = {
+  liked: boolean;
+  scrapped: boolean;
+  likeCount: number;
+  scrapCount: number;
+  isLikePending: boolean;
+  isScrapPending: boolean;
+};
+
 /** UI-shaped comment used by PostDetail's comment list. */
 export type CommentItem = {
   id: string;

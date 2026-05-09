@@ -22,6 +22,7 @@ import { C, F, R, SP } from '../../theme/tokens';
 import type { RootStackParamList } from '../../types';
 import { usePostDetail } from '../../hooks/usePostDetail';
 import { usePostComments } from '../../hooks/usePostComments';
+import { usePostActions } from '../../hooks/usePostActions';
 import type { CommentItem, PostDetail } from '../../types/post';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -100,9 +101,19 @@ export default function PostDetailV2() {
 
 function PostBody({ post }: { post: PostDetail }) {
   const [draft, setDraft] = useState('');
-  const [liked, setLiked] = useState(post.myActions?.liked ?? false);
-  const [scrapped, setScrapped] = useState(post.myActions?.scrapped ?? false);
   const [shared, setShared] = useState(false);
+
+  // myActions is currently absent from GET /v1/posts/{postId}; we pass it in
+  // case a future contract upgrade adds it. Until then both default to false.
+  const actions = usePostActions({
+    postId: post.postId,
+    initialLikeCount: post.stats.likes,
+    initialScrapCount: post.stats.scraps,
+    initialLiked: post.myActions?.liked,
+    initialScrapped: post.myActions?.scrapped,
+  });
+
+  const actionError = actions.likeError ?? actions.scrapError;
 
   const onShare = () => {
     setShared(true);
@@ -135,10 +146,11 @@ function PostBody({ post }: { post: PostDetail }) {
 
       <View style={styles.actions}>
         <ActionBtn
-          icon={<IcThumb size={18} color={liked ? C.inkNavy : C.textMeta} />}
-          label={`추천 ${post.stats.likes + (liked ? 1 : 0)}`}
-          accent={liked}
-          onPress={() => setLiked(v => !v)}
+          icon={<IcThumb size={18} color={actions.liked ? C.inkNavy : C.textMeta} />}
+          label={`추천 ${actions.likeCount}`}
+          accent={actions.liked}
+          pending={actions.isLikePending}
+          onPress={actions.toggleLike}
         />
         <ActionBtn
           icon={<IcMsg size={18} color={C.textMeta} />}
@@ -146,11 +158,12 @@ function PostBody({ post }: { post: PostDetail }) {
           onPress={() => undefined}
         />
         <ActionBtn
-          icon={<IcBookmark size={18} color={scrapped ? C.warn : C.textMeta} />}
-          label={`스크랩 ${post.stats.scraps + (scrapped ? 1 : 0)}`}
-          accent={scrapped}
+          icon={<IcBookmark size={18} color={actions.scrapped ? C.warn : C.textMeta} />}
+          label={`스크랩 ${actions.scrapCount}`}
+          accent={actions.scrapped}
           accentColor={C.warn}
-          onPress={() => setScrapped(v => !v)}
+          pending={actions.isScrapPending}
+          onPress={actions.toggleScrap}
         />
         <ActionBtn
           icon={<IcShare size={18} color={C.textMeta} />}
@@ -158,6 +171,10 @@ function PostBody({ post }: { post: PostDetail }) {
           onPress={onShare}
         />
       </View>
+
+      {actionError && (
+        <Text style={styles.actionError}>{actionError.message}</Text>
+      )}
 
       <View style={styles.divider} />
 
@@ -297,19 +314,25 @@ function CommentRow({ comment }: { comment: CommentItem }) {
 }
 
 function ActionBtn({
-  icon, label, accent = false, accentColor = C.inkNavy, onPress,
+  icon, label, accent = false, accentColor = C.inkNavy, pending = false, onPress,
 }: {
   icon: React.ReactNode;
   label: string;
   accent?: boolean;
   accentColor?: string;
+  pending?: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={pending}
       hitSlop={6}
-      style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.actionBtn,
+        pending && { opacity: 0.5 },
+        pressed && !pending && { opacity: 0.7 },
+      ]}
     >
       {icon}
       <Text style={[styles.actionLabel, accent && { color: accentColor, fontFamily: F.familyMedium }]}>
@@ -365,6 +388,13 @@ const styles = StyleSheet.create({
     paddingVertical: SP[1],
   },
   actionLabel: { fontSize: F.size.sm, color: C.textMeta },
+  actionError: {
+    fontSize: F.size.xs,
+    color: C.warn,
+    paddingHorizontal: SP[4],
+    paddingBottom: SP[2],
+    textAlign: 'center',
+  },
 
   divider: { height: 6, backgroundColor: '#F8F9FA' },
 

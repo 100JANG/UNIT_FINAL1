@@ -31,12 +31,14 @@
 - 주의: 경로는 `/v1/posts/{postId}/comments`이며 `/post_comments` 형태 사용 금지.
 - 이월: `UnitV2ParamList.CommentThread.commentId`를 number → string으로 마이그레이션 필요 (Comment write 사이클과 함께).
 
-### Cycle D — Like / Scrap
+### ~~Cycle D — Like / Scrap~~ → **완료 (Cycle 5)**
 - API:
-  - `POST /v1/posts/{postId}/like`  (toggle)
-  - `POST /v1/posts/{postId}/scrap` / `DELETE /v1/posts/{postId}/scrap`
-- 옵티미스틱 업데이트는 도입 가능하나, 실패 시 롤백 필수.
-- Feed의 `stats.likes`/`stats.scraps`는 hot-path가 아니어서 다음 cursor fetch 시 재동기화로 충분.
+  - ✅ `POST /v1/posts/{postId}/like` (toggle)
+  - ✅ `POST /v1/posts/{postId}/scrap` (toggle — DELETE는 사용 안 함, contract 준수)
+- 옵티미스틱 업데이트 + 실패 rollback 적용. reqId 토큰 + pending 가드로 동시성 방어.
+- `myActions` 부재: 초기 liked/scrapped는 false에서 시작, 토글 응답을 단일 출처로 정착.
+- Feed의 `stats.likes`/`stats.scraps` 동기화는 별도 작업으로 이월 (focus refetch 또는 글로벌 캐시).
+- 상세: [06_POST_ACTIONS_CONNECTION_REPORT.md](06_POST_ACTIONS_CONNECTION_REPORT.md)
 
 ### Cycle E — Courses / Course Review
 - 화면: `CoursesScreen`, `CourseDetailScreen`, `CourseReviewScreen`
