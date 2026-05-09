@@ -18,6 +18,11 @@ import SearchV2 from '../screens/v2/SearchScreen';
 import MyPostsV2 from '../screens/v2/MyPostsScreen';
 import MyCommentsV2 from '../screens/v2/MyCommentsScreen';
 import ScrapsV2 from '../screens/v2/ScrapsScreen';
+import OtherProfileV2 from '../screens/v2/OtherProfileScreen';
+import FriendRequestsV2 from '../screens/v2/FriendRequestsScreen';
+import ReportV2 from '../screens/v2/ReportScreen';
+import BlockListV2 from '../screens/v2/BlockListScreen';
+import CommentThreadV2 from '../screens/v2/CommentThreadScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -94,6 +99,11 @@ const REAL_SCREENS: Partial<
   MyPosts: MyPostsV2,
   MyComments: MyCommentsV2,
   Scraps: ScrapsV2,
+  OtherProfile: OtherProfileV2,
+  FriendRequests: FriendRequestsV2,
+  Report: ReportV2,
+  BlockList: BlockListV2,
+  CommentThread: CommentThreadV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };
