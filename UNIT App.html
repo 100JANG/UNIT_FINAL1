@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>UNIT — 대학 커뮤니티 앱</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { navy: '#000080', mint: '#1F7A5C', coral: '#B73E37', cream: '#FAF8F4' },
+    fontFamily: { sans: ['Pretendard Variable', 'Pretendard', 'system-ui', 'sans-serif'] },
+  }}};
+</script>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font-family: 'Pretendard Variable', 'Pretendard', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  *, *::before, *::after { box-sizing: border-box; }
+  .scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+  .scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); border-radius: 4px; }
+  @keyframes count-bounce { 0% { transform: translateY(4px); opacity: 0.5; } 100% { transform: translateY(0); opacity: 1; } }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="feed.jsx"></script>
+<script type="text/babel" src="write.jsx"></script>
+<script type="text/babel" src="courses.jsx"></script>
+<script type="text/babel" src="notif_profile.jsx"></script>
+<script type="text/babel" src="jury.jsx"></script>
+<script type="text/babel" src="campus.jsx"></script>
+<script type="text/babel" src="chat.jsx"></script>
+<script type="text/babel" src="manner.jsx"></script>
+
+<script type="text/babel">
+const { DesignCanvas, DCSection, DCArtboard, DCPostIt, IOSDevice,
+        FeedPage, PostDetailPage, WritePage,
+        CoursesPage, CourseDetailPage, CourseReviewPage,
+        NotificationsPage, ProfilePage, JuryPage,
+        CampusHub, TimetablePage, MealPage, BusPage, LibraryPage,
+        ContactsPage, ContestPage, JobsPage, MarketPage, FriendsPage,
+        ChatListPage, ChatRoomPage,
+        MannerGradePage, MannerLadderPage } = window;
+
+const Phone = ({ children }) => (
+  <IOSDevice width={380} height={780}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', paddingTop: 50, paddingBottom: 0 }}>
+      {children}
+    </div>
+  </IOSDevice>
+);
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="cover" title="UNIT" subtitle="대학 커뮤니티 앱 · 17 화면 · #000080">
+        <DCArtboard id="brief" label="BRIEF" width={520} height={780}>
+          <div className="h-full p-11 bg-white flex flex-col gap-4">
+            <div className="text-[14px] font-semibold tracking-[-0.3px] text-[#000080]">UNIT</div>
+            <div className="text-[11px] text-gray-500 tracking-wider uppercase">University Community · 2026</div>
+            <h1 className="text-[40px] font-semibold tracking-[-1.2px] leading-[1.1] text-[#0A0A0A] mt-1">
+              피드부터<br/>식단 · 셔틀 · 열람실까지<br/>한 앱에서.
+            </h1>
+            <p className="text-[13.5px] text-gray-600 leading-[1.65] tracking-[-0.2px]">
+              5탭 + 캠퍼스 허브 구조. 베이스 #000080에 신뢰의 민트(#1F7A5C),
+              경고의 코랄(#B73E37), 차분한 크림 표면을 절제해서 사용했어요.
+            </p>
+            <div className="mt-auto pt-4 border-t border-[#E5E5E5] grid grid-cols-2 gap-y-2 text-[11.5px] text-gray-600">
+              <div><span className="text-gray-400">탭 ·</span> 피드 / 캠퍼스 / 쓰기 / 채팅 / 나</div>
+              <div><span className="text-gray-400">화면 ·</span> 17개</div>
+              <div><span className="text-gray-400">학교 ·</span> 인하 · 아주 (favicon)</div>
+              <div><span className="text-gray-400">실시간 ·</span> 채팅 / 셔틀 / 열람실</div>
+            </div>
+          </div>
+        </DCArtboard>
+        <DCPostIt top={20} left={580} width={220} rotate={-3}>
+          베이스 #000080 + 신뢰 민트 + 경고 코랄 + 크림. AI 톤 0%.
+        </DCPostIt>
+      </DCSection>
+
+      <DCSection id="feed" title="① 피드 · 글쓰기" subtitle="게시판 + 글 상세 + 사진 첨부 글쓰기">
+        <DCArtboard id="feed-list" label="FeedPage" width={400} height={800}><Phone><FeedPage/></Phone></DCArtboard>
+        <DCArtboard id="post-detail" label="PostDetailPage" width={400} height={800}><Phone><PostDetailPage/></Phone></DCArtboard>
+        <DCArtboard id="write" label="WritePage · 사진" width={400} height={800}><Phone><WritePage/></Phone></DCArtboard>
+      </DCSection>
+
+      <DCSection id="campus" title="② 캠퍼스 허브" subtitle="시간표 · 식단 · 셔틀 · 열람실 — 학교 공통 서비스">
+        <DCArtboard id="hub" label="CampusHub" width={400} height={800}><Phone><CampusHub/></Phone></DCArtboard>
+        <DCArtboard id="timetable" label="시간표" width={400} height={800}><Phone><TimetablePage/></Phone></DCArtboard>
+        <DCArtboard id="meal" label="식단표" width={400} height={800}><Phone><MealPage/></Phone></DCArtboard>
+        <DCArtboard id="bus" label="셔틀버스" width={400} height={800}><Phone><BusPage/></Phone></DCArtboard>
+        <DCArtboard id="library" label="열람실" width={400} height={800}><Phone><LibraryPage/></Phone></DCArtboard>
+        <DCArtboard id="contacts" label="교내 연락처" width={400} height={800}><Phone><ContactsPage/></Phone></DCArtboard>
+      </DCSection>
+
+      <DCSection id="market-life" title="③ 학생 생활" subtitle="공모전 · 알바 · 중고장터 · 친구찾기">
+        <DCArtboard id="contest" label="공모전" width={400} height={800}><Phone><ContestPage/></Phone></DCArtboard>
+        <DCArtboard id="jobs" label="알바" width={400} height={800}><Phone><JobsPage/></Phone></DCArtboard>
+        <DCArtboard id="market" label="중고장터" width={400} height={800}><Phone><MarketPage/></Phone></DCArtboard>
+        <DCArtboard id="friends" label="친구찾기" width={400} height={800}><Phone><FriendsPage/></Phone></DCArtboard>
+      </DCSection>
+
+      <DCSection id="chat" title="④ 채팅" subtitle="실시간 단톡 / 1:1 — mock 소켓으로 입장 · 타이핑 시연">
+        <DCArtboard id="chat-list" label="ChatListPage" width={400} height={800}><Phone><ChatListPage/></Phone></DCArtboard>
+        <DCArtboard id="chat-room" label="ChatRoomPage" width={400} height={800}><Phone><ChatRoomPage/></Phone></DCArtboard>
+      </DCSection>
+
+      <DCSection id="courses" title="⑤ 강의평" subtitle="원탭 추천/비추 + 상세 + 3초 작성">
+        <DCArtboard id="courses-list" label="CoursesPage · 원탭 투표" width={400} height={800}><Phone><CoursesPage/></Phone></DCArtboard>
+        <DCArtboard id="course-detail" label="CourseDetailPage" width={400} height={800}><Phone><CourseDetailPage/></Phone></DCArtboard>
+        <DCArtboard id="course-review" label="3초 작성" width={400} height={800}><Phone><CourseReviewPage/></Phone></DCArtboard>
+      </DCSection>
+
+      <DCSection id="meta" title="⑥ 자치 · 알림 · 나" subtitle="배심원 + 알림 + 프로필">
+        <DCArtboard id="jury" label="JuryPage" width={400} height={800}><Phone><JuryPage/></Phone></DCArtboard>
+        <DCArtboard id="notif" label="NotificationsPage" width={400} height={800}><Phone><NotificationsPage/></Phone></DCArtboard>
+        <DCArtboard id="profile" label="ProfilePage" width={400} height={800}><Phone><ProfilePage/></Phone></DCArtboard>
+      </DCSection>
+
+      <DCSection id="manner" title="⑦ 매너 학점 (NEW)" subtitle="A+ ~ F · 9등급 · 기본 B0 · LoL 명예 + 당근 매너온도 모티브">
+        <DCArtboard id="manner-detail" label="내 매너 학점" width={400} height={800}><Phone><MannerGradePage/></Phone></DCArtboard>
+        <DCArtboard id="manner-ladder" label="9등급 사다리" width={400} height={800}><Phone><MannerLadderPage/></Phone></DCArtboard>
+        <DCPostIt top={20} left={860} width={220} rotate={2}>
+          학점은 9단계: A+ A0 B+ B0 C+ C0 D+ D0 F. 신규는 B0(80점)에서 시작.
+        </DCPostIt>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import type { RootStackParamList } from '../types';
+
+import TabNavigator from './TabNavigator';
+import WriteScreen from '../screens/WriteScreen';
+import PostDetailScreen from '../screens/PostDetailScreen';
+import CoursesScreen from '../screens/CoursesScreen';
+import CourseDetailScreen from '../screens/CourseDetailScreen';
+import CourseReviewScreen from '../screens/CourseReviewScreen';
+import JuryScreen from '../screens/JuryScreen';
+import ChatRoomScreen from '../screens/ChatRoomScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import MannerGradeScreen from '../screens/MannerGradeScreen';
+import MannerLadderScreen from '../screens/MannerLadderScreen';
+import TimetableScreen from '../screens/TimetableScreen';
+import MealScreen from '../screens/MealScreen';
+import BusScreen from '../screens/BusScreen';
+import LibraryScreen from '../screens/LibraryScreen';
+import ContactsScreen from '../screens/ContactsScreen';
+import ContestScreen from '../screens/ContestScreen';
+import JobsScreen from '../screens/JobsScreen';
+import MarketScreen from '../screens/MarketScreen';
+import FriendsScreen from '../screens/FriendsScreen';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+export default function RootNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Tabs" component={TabNavigator} />
+
+      <Stack.Screen
+        name="Write"
+        component={WriteScreen}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+      <Stack.Screen name="Courses" component={CoursesScreen} />
+      <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
+      <Stack.Screen
+        name="CourseReview"
+        component={CourseReviewScreen}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="Jury"
+        component={JuryScreen}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen name="ChatRoom" component={ChatRoomScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="MannerGrade" component={MannerGradeScreen} />
+      <Stack.Screen name="MannerLadder" component={MannerLadderScreen} />
+
+      <Stack.Screen name="Timetable" component={TimetableScreen} />
+      <Stack.Screen name="Meal" component={MealScreen} />
+      <Stack.Screen name="Bus" component={BusScreen} />
+      <Stack.Screen name="Library" component={LibraryScreen} />
+      <Stack.Screen name="Contacts" component={ContactsScreen} />
+      <Stack.Screen name="Contest" component={ContestScreen} />
+      <Stack.Screen name="Jobs" component={JobsScreen} />
+      <Stack.Screen name="Market" component={MarketScreen} />
+      <Stack.Screen name="Friends" component={FriendsScreen} />
+    </Stack.Navigator>
+  );
+}

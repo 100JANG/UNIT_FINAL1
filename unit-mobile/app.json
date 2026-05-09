@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "UNIT",
+    "slug": "unit-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "backgroundColor": "#FFFFFF",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.unit.mobile",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "사진을 첨부하기 위해 갤러리 접근이 필요합니다.",
+        "NSCameraUsageDescription": "사진을 촬영하여 첨부하기 위해 카메라 접근이 필요합니다."
+      }
+    },
+    "android": {
+      "package": "com.unit.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "사진을 첨부하기 위해 갤러리 접근이 필요합니다.",
+          "cameraPermission": "사진을 촬영하여 첨부하기 위해 카메라 접근이 필요합니다."
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>UNIT — 대학 커뮤니티 앱 (Print)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { navy: '#000080', mint: '#1F7A5C', coral: '#B73E37', cream: '#FAF8F4' },
+    fontFamily: { sans: ['Pretendard Variable', 'Pretendard', 'system-ui', 'sans-serif'] },
+  }}};
+</script>
+<style>
+  html, body { margin: 0; padding: 0; font-family: 'Pretendard Variable', 'Pretendard', system-ui, sans-serif; -webkit-font-smoothing: antialiased; background: #f5f5f5; }
+  *, *::before, *::after { box-sizing: border-box; }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+  .page {
+    width: 297mm; min-height: 209mm;
+    padding: 14mm 16mm;
+    background: white;
+    margin: 12px auto;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    page-break-after: always;
+    break-after: page;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    display: flex;
+    flex-direction: column;
+  }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .page-head { display: flex; align-items: baseline; gap: 14px; padding-bottom: 10px; border-bottom: 1px solid #E5E7EB; }
+  .page-head .num { font-size: 11px; color: #9CA3AF; letter-spacing: 0.06em; }
+  .page-head h2 { font-size: 18px; font-weight: 600; color: #111; margin: 0; letter-spacing: -0.4px; }
+  .page-head .sub { margin-left: auto; font-size: 11.5px; color: #6B7280; }
+
+  .grid-row {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    padding-top: 14px;
+    align-items: start;
+  }
+  .grid-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-row.cols-1 { grid-template-columns: 1fr; justify-items: center; }
+  .grid-row.cols-4 { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .frame .label { font-size: 10.5px; color: #6B7280; }
+  .frame .phone-wrap {
+    width: 235px; height: 478px;
+    transform-origin: top left;
+  }
+  .grid-row.cols-4 .phone-wrap { width: 175px; height: 358px; }
+  .grid-row.cols-2 .phone-wrap { width: 290px; height: 590px; }
+  .grid-row.cols-1 .phone-wrap { width: 380px; height: 780px; }
+
+  /* Cover */
+  .cover-card {
+    flex: 1;
+    display: flex; flex-direction: column;
+    padding: 30mm 24mm;
+  }
+  .cover-card .brand { font-size: 16px; font-weight: 600; color: #000080; }
+  .cover-card .meta  { font-size: 11px; color: #9CA3AF; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
+  .cover-card h1     { font-size: 56px; font-weight: 600; line-height: 1.08; letter-spacing: -1.6px; color: #0A0A0A; margin: 22px 0 18px; }
+  .cover-card p      { font-size: 15px; line-height: 1.7; color: #4B5563; max-width: 600px; }
+  .cover-card .grid  { margin-top: auto; padding-top: 18px; border-top: 1px solid #E5E7EB;
+                       display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px;
+                       font-size: 12px; color: #4B5563; }
+  .cover-card .grid span.k { color: #9CA3AF; margin-right: 6px; }
+
+  @page { size: A4 landscape; margin: 0; }
+  @media print {
+    html, body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { box-shadow: none; margin: 0; width: 297mm; min-height: 209mm; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="feed.jsx"></script>
+<script type="text/babel" src="write.jsx"></script>
+<script type="text/babel" src="courses.jsx"></script>
+<script type="text/babel" src="notif_profile.jsx"></script>
+<script type="text/babel" src="jury.jsx"></script>
+<script type="text/babel" src="campus.jsx"></script>
+<script type="text/babel" src="chat.jsx"></script>
+<script type="text/babel" src="manner.jsx"></script>
+
+<script type="text/babel">
+const { IOSDevice,
+        FeedPage, PostDetailPage, WritePage,
+        CoursesPage, CourseDetailPage, CourseReviewPage,
+        NotificationsPage, ProfilePage, JuryPage,
+        CampusHub, TimetablePage, MealPage, BusPage, LibraryPage,
+        ContactsPage, ContestPage, JobsPage, MarketPage, FriendsPage,
+        ChatListPage, ChatRoomPage,
+        MannerGradePage, MannerLadderPage } = window;
+
+// scaled phone — uses a 380x780 canvas internally, scaled into the .phone-wrap box
+function PhoneFrame({ Comp, scale = 1 }) {
+  return (
+    <div style={{ width: 380, height: 780, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+      <IOSDevice width={380} height={780}>
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', paddingTop: 50, paddingBottom: 0 }}>
+          <Comp />
+        </div>
+      </IOSDevice>
+    </div>
+  );
+}
+
+function Frame({ label, Comp, cols }) {
+  // scale factor: target visual width / source 380
+  const target = cols === 1 ? 380 : cols === 2 ? 290 : cols === 4 ? 175 : 235;
+  const scale = target / 380;
+  return (
+    <div className="frame">
+      <div style={{ width: target, height: target * (780/380), overflow: 'hidden' }}>
+        <PhoneFrame Comp={Comp} scale={scale} />
+      </div>
+      <div className="label">{label}</div>
+    </div>
+  );
+}
+
+function Page({ num, title, sub, children, cols = 3 }) {
+  return (
+    <section className="page">
+      <header className="page-head">
+        <span className="num">{num}</span>
+        <h2>{title}</h2>
+        {sub && <span className="sub">{sub}</span>}
+      </header>
+      <div className={`grid-row cols-${cols}`}>{children}</div>
+    </section>
+  );
+}
+
+const SECTIONS = [
+  { num: '01', title: '피드 · 글쓰기', sub: '게시판 + 글 상세 + 사진 첨부 글쓰기', cols: 3,
+    items: [
+      ['FeedPage', FeedPage], ['PostDetailPage', PostDetailPage], ['WritePage · 사진', WritePage],
+    ]},
+  { num: '02', title: '캠퍼스 허브 (1/2)', sub: '시간표 · 식단 · 셔틀', cols: 3,
+    items: [
+      ['CampusHub', CampusHub], ['시간표', TimetablePage], ['식단표', MealPage],
+    ]},
+  { num: '02', title: '캠퍼스 허브 (2/2)', sub: '셔틀 · 열람실 · 연락처', cols: 3,
+    items: [
+      ['셔틀버스', BusPage], ['열람실', LibraryPage], ['교내 연락처', ContactsPage],
+    ]},
+  { num: '03', title: '학생 생활', sub: '공모전 · 알바 · 중고장터 · 친구찾기', cols: 4,
+    items: [
+      ['공모전', ContestPage], ['알바', JobsPage], ['중고장터', MarketPage], ['친구찾기', FriendsPage],
+    ]},
+  { num: '04', title: '채팅', sub: '실시간 단톡 / 1:1', cols: 2,
+    items: [
+      ['ChatListPage', ChatListPage], ['ChatRoomPage', ChatRoomPage],
+    ]},
+  { num: '05', title: '강의평', sub: '원탭 추천/비추천 + 상세 + 3초 작성', cols: 3,
+    items: [
+      ['CoursesPage · 원탭 투표', CoursesPage], ['CourseDetailPage', CourseDetailPage], ['3초 작성', CourseReviewPage],
+    ]},
+  { num: '06', title: '자치 · 알림 · 나', sub: '배심원 + 알림 + 프로필', cols: 3,
+    items: [
+      ['JuryPage', JuryPage], ['NotificationsPage', NotificationsPage], ['ProfilePage', ProfilePage],
+    ]},
+  { num: '07', title: '매너 학점', sub: 'A+ ~ F · 9등급 · 기본 B0', cols: 2,
+    items: [
+      ['내 매너 학점', MannerGradePage], ['9등급 사다리', MannerLadderPage],
+    ]},
+];
+
+function Cover() {
+  return (
+    <section className="page">
+      <div className="cover-card">
+        <div className="brand">UNIT</div>
+        <div className="meta">University Community · 2026</div>
+        <h1>피드부터<br/>식단 · 셔틀 · 열람실까지<br/>한 앱에서.</h1>
+        <p>
+          5탭 + 캠퍼스 허브 구조. 베이스 #000080에 신뢰의 민트(#1F7A5C),
+          경고의 코랄(#B73E37), 차분한 크림 표면을 절제해서 사용했어요.
+        </p>
+        <div className="grid">
+          <div><span className="k">탭 ·</span>피드 / 캠퍼스 / 쓰기 / 채팅 / 나</div>
+          <div><span className="k">화면 ·</span>17개</div>
+          <div><span className="k">학교 ·</span>인하 · 아주</div>
+          <div><span className="k">실시간 ·</span>채팅 / 셔틀 / 열람실</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Cover />
+      {SECTIONS.map((s, i) => (
+        <Page key={i} num={s.num} title={s.title} sub={s.sub} cols={s.cols}>
+          {s.items.map(([label, Comp], j) => (
+            <Frame key={j} label={label} Comp={Comp} cols={s.cols} />
+          ))}
+        </Page>
+      ))}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
+// Auto-print once fonts and rendering settle
+(async () => {
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (e) {}
+  }
+  await new Promise(r => setTimeout(r, 800));
+  window.print();
+})();
+</script>
+</body>
+</html>

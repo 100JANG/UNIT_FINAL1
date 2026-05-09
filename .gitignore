@@ -1,0 +1,32 @@
+# Node / Expo / RN
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.DS_Store
+
+# Logs
+npm-debug.*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Local env
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+
+# Design canvas state (local-only)
+.design-canvas.state.json
