@@ -4,6 +4,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 
 export type RootStackParamList = {
   Tabs: undefined;
+  UnitV2: { screen?: string; params?: object } | undefined;
   Write: undefined;
   PostDetail: { postId: number };
   Courses: undefined;

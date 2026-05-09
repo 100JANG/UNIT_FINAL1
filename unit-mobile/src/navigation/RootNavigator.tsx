@@ -22,6 +22,7 @@ import ContestScreen from '../screens/ContestScreen';
 import JobsScreen from '../screens/JobsScreen';
 import MarketScreen from '../screens/MarketScreen';
 import FriendsScreen from '../screens/FriendsScreen';
+import UnitV2Stack from './UnitV2Stack';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -62,6 +63,9 @@ export default function RootNavigator() {
       <Stack.Screen name="Jobs" component={JobsScreen} />
       <Stack.Screen name="Market" component={MarketScreen} />
       <Stack.Screen name="Friends" component={FriendsScreen} />
+
+      {/* PR-02: nested v2 navigator. Access via navigate('UnitV2', { screen: 'Feed' }). */}
+      <Stack.Screen name="UnitV2" component={UnitV2Stack} />
     </Stack.Navigator>
   );
 }
