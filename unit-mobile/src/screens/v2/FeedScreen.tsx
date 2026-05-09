@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   AppBar,
   IconButton,
@@ -12,13 +13,16 @@ import {
   IcChevDn,
 } from '../../components/ui';
 import { C, F, R, SHADOW, SP } from '../../theme/tokens';
-import type { UnitV2ParamList } from '../../types/unit-v2';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../types';
 import { useFeedPosts } from '../../hooks/useFeedPosts';
 import type { FeedScope } from '../../services/api/feedApi';
 import type { PostSummary } from '../../services/api/mappers/postMapper';
+import DevAuthPanel from '../../components/dev/DevAuthPanel';
 
-type Nav = NativeStackNavigationProp<UnitV2ParamList>;
+// FeedScreen renders inside Tabs -> Root stack at runtime. PostDetail and
+// Notifications live directly on Root; Search lives in the nested UnitV2 stack
+// (reach it via navigate('UnitV2', { screen: 'Search' })).
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 // Mock fallback. Used only when the live API has not yet returned a successful
 // response for the current scope. Do NOT use in production once auth is wired —
@@ -63,13 +67,15 @@ export default function FeedV2() {
           title="아주대학교"
           trailing={
             <View style={{ flexDirection: 'row' }}>
-              <IconButton icon={<IcSearch />} onPress={() => navigation.navigate('Search')} />
+              <IconButton icon={<IcSearch />} onPress={() => navigation.navigate('UnitV2', { screen: 'Search' })} />
               <IconButton icon={<IcBell />} onPress={() => navigation.navigate('Notifications')} />
             </View>
           }
         />
       }
     >
+      <DevAuthPanel />
+
       <View style={styles.tabRow}>
         <Tabs
           items={[
@@ -122,15 +128,7 @@ export default function FeedV2() {
             keyExtractor={(p) => p.postId}
             renderItem={({ item }) => (
               <Pressable
-                onPress={() => {
-                  // PostDetail still expects { postId: number } in the legacy stack.
-                  // Numeric coercion fails for string ids — guard until detail screen is migrated
-                  // (tracked in docs/integration/02_REMAINING_CONNECTION_PLAN.md).
-                  const numericId = Number(item.postId);
-                  if (!Number.isNaN(numericId)) {
-                    navigation.navigate('PostDetail', { postId: numericId } as never);
-                  }
-                }}
+                onPress={() => navigation.navigate('PostDetail', { postId: item.postId })}
                 style={({ pressed }) => [
                   styles.card,
                   SHADOW.card,

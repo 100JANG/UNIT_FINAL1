@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import {
   AppBar,
   Avatar,
@@ -17,34 +19,97 @@ import {
   IcShare,
 } from '../../components/ui';
 import { C, F, R, SP } from '../../theme/tokens';
-import type { UnitV2ParamList } from '../../types/unit-v2';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../types';
+import { usePostDetail } from '../../hooks/usePostDetail';
+import type { PostDetail } from '../../types/post';
 
-type Nav = NativeStackNavigationProp<UnitV2ParamList>;
-type R$ = RouteProp<UnitV2ParamList, 'PostDetail'>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+type R$ = RouteProp<RootStackParamList, 'PostDetail'>;
 
-const POST = {
-  board: '자유',
-  nick: '익명',
-  time: '12분 전',
-  title: '기숙사 식단 이번 학기부터 바뀐 거 어때요?',
-  body: '아침에 시리얼 코너 사라지고 토스트 추가됐는데, 점심은 그대로인 것 같음.\n\n오늘 점심 직접 가서 봤는데 메인은 진짜 그대로였어요. 사이드만 두 가지 늘었고, 음료대는 그대로.\n\n바뀐 거 직접 보신 분 후기 있으면 같이 공유해 주세요.',
-  tags: ['기숙사', '식단', '학교생활'],
-  up: 24, cmt: 18, scrap: 4,
-};
-
-const COMMENTS = [
-  { id: 1, nick: '익명1', time: '8분 전', body: '저는 토스트 코너 좋더라고요. 잼 종류 늘려주면 좋겠음.', up: 4 },
-  { id: 2, nick: '익명2', time: '6분 전', body: '근데 사이드 두 가지 늘었다는 거 사실인가요?', up: 1 },
-  { id: 3, nick: '익명3', time: '3분 전', body: '식단표 학사정보 사이트에 올라와 있어요. 4월 4주차부터 적용이라고 합니다.', up: 8 },
+// Mock comment thread used as a placeholder while Comments API is not yet
+// connected. Backend GET /v1/posts/{postId} does not embed comments — they live
+// at GET /v1/posts/{postId}/comments (next cycle). Toggle states below are
+// local-only on purpose: like/scrap toggle endpoints are also out of scope.
+const MOCK_COMMENTS = [
+  { id: 1, nick: '익명1', time: '8분 전', body: '댓글 API 연결 전 임시 표시입니다.', up: 4 },
+  { id: 2, nick: '익명2', time: '6분 전', body: 'Cycle 4에서 실제 댓글로 교체됩니다.', up: 1 },
 ];
+
+function formatRelative(iso: string): string {
+  const d = new Date(iso);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (Number.isNaN(diff)) return '';
+  if (diff < 60) return '방금 전';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  return `${Math.floor(diff / 86400)}일 전`;
+}
 
 export default function PostDetailV2() {
   const navigation = useNavigation<Nav>();
-  useRoute<R$>(); // params used here would lookup post by id
+  const { params } = useRoute<R$>();
+  const { status, post, error, refetch } = usePostDetail(params.postId);
+
+  return (
+    <Screen
+      scrollable
+      appBar={
+        <AppBar
+          leading={<IconButton icon={<IcBack />} onPress={() => navigation.goBack()} />}
+          title={post?.boardName ?? post?.boardId ?? '게시글'}
+          trailing={<IconButton icon={<IcMore />} onPress={() => undefined} />}
+        />
+      }
+    >
+      {status === 'loading' || status === 'idle' ? (
+        <CenteredState>
+          <ActivityIndicator />
+        </CenteredState>
+      ) : status === 'not-found' ? (
+        <CenteredState>
+          <Text style={styles.stateTitle}>삭제되었거나 존재하지 않는 글입니다</Text>
+          <Text style={styles.stateBody}>
+            {error?.message ?? '요청한 게시글을 찾을 수 없습니다.'}
+          </Text>
+          <PrimaryButton label="뒤로 가기" onPress={() => navigation.goBack()} />
+        </CenteredState>
+      ) : status === 'auth-required' ? (
+        <CenteredState>
+          <Text style={styles.stateTitle}>로그인이 필요합니다</Text>
+          <Text style={styles.stateBody}>
+            게시글을 보려면 인증이 필요합니다. 개발 단계에서는 피드 상단의 DEV 패널에서
+            sessionToken을 입력해주세요.
+          </Text>
+          <PrimaryButton label="뒤로 가기" onPress={() => navigation.goBack()} />
+        </CenteredState>
+      ) : status === 'forbidden' ? (
+        <CenteredState>
+          <Text style={styles.stateTitle}>접근할 수 없는 게시글입니다</Text>
+          <Text style={styles.stateBody}>{error?.message ?? '권한이 없습니다.'}</Text>
+          <PrimaryButton label="뒤로 가기" onPress={() => navigation.goBack()} />
+        </CenteredState>
+      ) : status === 'reserved' ? (
+        <CenteredState>
+          <Text style={styles.stateTitle}>준비 중인 기능입니다</Text>
+          <Text style={styles.stateBody}>{error?.message ?? '곧 제공될 예정입니다.'}</Text>
+        </CenteredState>
+      ) : status === 'error' ? (
+        <CenteredState>
+          <Text style={styles.stateTitle}>게시글을 불러오지 못했습니다</Text>
+          <Text style={styles.stateBody}>{error?.message ?? '잠시 후 다시 시도해주세요.'}</Text>
+          <PrimaryButton label="다시 시도" onPress={refetch} />
+        </CenteredState>
+      ) : post ? (
+        <PostBody post={post} navigation={navigation} />
+      ) : null}
+    </Screen>
+  );
+}
+
+function PostBody({ post, navigation }: { post: PostDetail; navigation: Nav }) {
   const [draft, setDraft] = useState('');
-  const [liked, setLiked] = useState(false);
-  const [scrapped, setScrapped] = useState(false);
+  const [liked, setLiked] = useState(post.myActions?.liked ?? false);
+  const [scrapped, setScrapped] = useState(post.myActions?.scrapped ?? false);
   const [shared, setShared] = useState(false);
 
   const onShare = () => {
@@ -53,32 +118,25 @@ export default function PostDetailV2() {
   };
 
   return (
-    <Screen
-      scrollable
-      appBar={
-        <AppBar
-          leading={<IconButton icon={<IcBack />} onPress={() => navigation.goBack()} />}
-          title="자유게시판"
-          trailing={<IconButton icon={<IcMore />} onPress={() => undefined} />}
-        />
-      }
-    >
+    <>
       <View style={styles.body}>
         <View style={styles.head}>
-          <Avatar name={POST.nick} size={28} />
+          <Avatar name={post.author.anonymousId} size={28} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.headNick}>{POST.nick}</Text>
-            <Text style={styles.headTime}>{POST.time}</Text>
+            <Text style={styles.headNick}>{post.author.anonymousId}</Text>
+            <Text style={styles.headTime}>{formatRelative(post.createdAt)}</Text>
           </View>
-          <Pill>{POST.board}</Pill>
+          <Pill>{post.boardName ?? post.boardId}</Pill>
         </View>
-        <Text style={styles.title}>{POST.title}</Text>
-        <Text style={styles.bodyText}>{POST.body}</Text>
-        <View style={styles.tagRow}>
-          {POST.tags.map((t) => (
-            <Text key={t} style={styles.tag}>#{t}</Text>
-          ))}
-        </View>
+        <Text style={styles.title}>{post.title}</Text>
+        <Text style={styles.bodyText}>{post.content}</Text>
+        {post.tags.length > 0 && (
+          <View style={styles.tagRow}>
+            {post.tags.map(t => (
+              <Text key={t} style={styles.tag}>#{t}</Text>
+            ))}
+          </View>
+        )}
       </View>
 
       <Hairline mx={SP[4]} />
@@ -86,21 +144,21 @@ export default function PostDetailV2() {
       <View style={styles.actions}>
         <ActionBtn
           icon={<IcThumb size={18} color={liked ? C.inkNavy : C.textMeta} />}
-          label={`추천 ${POST.up + (liked ? 1 : 0)}`}
+          label={`추천 ${post.stats.likes + (liked ? 1 : 0)}`}
           accent={liked}
-          onPress={() => setLiked((v) => !v)}
+          onPress={() => setLiked(v => !v)}
         />
         <ActionBtn
           icon={<IcMsg size={18} color={C.textMeta} />}
-          label={`댓글 ${POST.cmt}`}
+          label={`댓글 ${post.stats.comments}`}
           onPress={() => undefined}
         />
         <ActionBtn
           icon={<IcBookmark size={18} color={scrapped ? C.warn : C.textMeta} />}
-          label={`스크랩 ${POST.scrap + (scrapped ? 1 : 0)}`}
+          label={`스크랩 ${post.stats.scraps + (scrapped ? 1 : 0)}`}
           accent={scrapped}
           accentColor={C.warn}
-          onPress={() => setScrapped((v) => !v)}
+          onPress={() => setScrapped(v => !v)}
         />
         <ActionBtn
           icon={<IcShare size={18} color={C.textMeta} />}
@@ -112,13 +170,14 @@ export default function PostDetailV2() {
       <View style={styles.divider} />
 
       <View style={styles.commentsHead}>
-        <Text style={styles.commentsTitle}>댓글 {POST.cmt}</Text>
+        <Text style={styles.commentsTitle}>댓글 {post.stats.comments}</Text>
         <Pressable hitSlop={6}>
           <Text style={styles.sortText}>최신순</Text>
         </Pressable>
       </View>
 
-      {COMMENTS.map((c) => (
+      {/* Mock placeholder until Comments API is connected next cycle. */}
+      {MOCK_COMMENTS.map(c => (
         <View key={c.id} style={styles.commentRow}>
           <View style={styles.commentHead}>
             <Avatar name={c.nick} size={24} />
@@ -133,7 +192,7 @@ export default function PostDetailV2() {
             </Pressable>
             <Pressable
               hitSlop={6}
-              onPress={() => navigation.navigate('CommentThread', { commentId: c.id })}
+              onPress={() => navigation.navigate('UnitV2', { screen: 'CommentThread', params: { commentId: c.id } })}
             >
               <Text style={styles.replyLink}>답글</Text>
             </Pressable>
@@ -149,17 +208,11 @@ export default function PostDetailV2() {
           placeholderTextColor={C.hint}
           style={styles.input}
         />
-        <Pressable
-          disabled={!draft.trim()}
-          hitSlop={6}
-          onPress={() => setDraft('')}
-        >
-          <Text style={[styles.submitBtn, !draft.trim() && { color: C.hint }]}>
-            등록
-          </Text>
+        <Pressable disabled={!draft.trim()} hitSlop={6} onPress={() => setDraft('')}>
+          <Text style={[styles.submitBtn, !draft.trim() && { color: C.hint }]}>등록</Text>
         </Pressable>
       </View>
-    </Screen>
+    </>
   );
 }
 
@@ -182,6 +235,18 @@ function ActionBtn({
       <Text style={[styles.actionLabel, accent && { color: accentColor, fontFamily: F.familyMedium }]}>
         {label}
       </Text>
+    </Pressable>
+  );
+}
+
+function CenteredState({ children }: { children: React.ReactNode }) {
+  return <View style={styles.center}>{children}</View>;
+}
+
+function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={styles.primaryBtn}>
+      <Text style={styles.primaryBtnText}>{label}</Text>
     </Pressable>
   );
 }
@@ -272,4 +337,21 @@ const styles = StyleSheet.create({
     fontFamily: F.familySemiBold,
     paddingHorizontal: SP[2],
   },
+
+  center: {
+    paddingHorizontal: SP[6],
+    paddingVertical: SP[8],
+    alignItems: 'center',
+    gap: 8,
+  },
+  stateTitle: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, textAlign: 'center' },
+  stateBody: { fontSize: F.size.sm, color: C.textMeta, textAlign: 'center' },
+  primaryBtn: {
+    marginTop: SP[3],
+    paddingHorizontal: SP[4],
+    paddingVertical: SP[2],
+    backgroundColor: C.inkNavy,
+    borderRadius: R.md,
+  },
+  primaryBtnText: { color: C.white, fontFamily: F.familySemiBold, fontSize: F.size.sm },
 });

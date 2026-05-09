@@ -124,16 +124,15 @@ UI 렌더링은 일단 `boardName ?? boardId`로 fallback해 board id를 뱃지�
 
 ## 8. 남은 문제 / 알려진 한계
 
-1. **PostDetail 라우트 타입 불일치**:
-   `RootStackParamList.PostDetail`은 `{ postId: number }`인데 백엔드 `postId`는 string(`p_xxxx`).
-   현재 FeedScreen은 mock id가 `mock_1` 형태라 numeric 변환이 실패하면 navigate를 막는 가드만
-   둔 상태. 실제 API 응답에서도 navigate가 동작하지 않는다. → PostDetail 연결 사이클에서
-   라우트 타입을 string으로 마이그레이션해야 함.
-2. **세션 토큰 영속화 부재**: 앱 재시작 시 토큰이 사라진다. `expo-secure-store` 도입은 별도 사이클.
+1. ~~**PostDetail 라우트 타입 불일치**~~ → **Cycle 2에서 해결**.
+   `RootStackParamList.PostDetail` / `UnitV2ParamList.PostDetail` 모두 `{ postId: string }`로 통일.
+   FeedScreen의 numeric 변환 가드도 제거됨. 자세한 내역은 [03_AUTH_TOKEN_AND_ROUTE_ALIGNMENT_REPORT.md §5](03_AUTH_TOKEN_AND_ROUTE_ALIGNMENT_REPORT.md).
+2. ~~**세션 토큰 영속화 부재**~~ → **Cycle 2에서 해결** (expo-secure-store 도입).
+   상세: [03_AUTH_TOKEN_AND_ROUTE_ALIGNMENT_REPORT.md §2](03_AUTH_TOKEN_AND_ROUTE_ALIGNMENT_REPORT.md).
 3. **TanStack Query 미설치**: race-condition은 reqId 토큰으로 방어 중. 후속 사이클에서 도입.
 4. **Sort UI 미연결**: "최신순" Pressable은 노출만 되어 있고 핸들러 없음 (이번 사이클 범위 외).
 5. **board-id → label 매핑 미구현**: Pill에 `boardId`가 그대로 노출됨.
-6. **AUTH_EXPIRED 자동 refresh 미구현**: 401 시 retry 흐름 없음 — auth 화면 통합 사이클로 이월.
+6. **AUTH_EXPIRED 자동 refresh 미구현**: Cycle 2에서 401 시 토큰 클리어까지는 처리. `/v1/auth/refresh` 자동 재시도 흐름은 후속 cycle.
 
 ## 9. 실행 결과
 

@@ -7,7 +7,7 @@
 // response.data / response.result on the call site; the unwrap happens here.
 
 import { ApiError, type ApiResponse } from './apiTypes';
-import { getSessionToken } from './sessionToken';
+import { clearSessionToken, getSessionToken } from '../auth/sessionToken';
 
 const BASE_URL =
   (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/+$/, '') ||
@@ -41,7 +41,7 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
 
   if (opts.auth !== false) {
-    const token = getSessionToken();
+    const token = await getSessionToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
@@ -85,6 +85,15 @@ async function request<T>(method: string, path: string, opts: RequestOptions = {
   }
 
   if (payload.code !== 'SUCCESS') {
+    // Token-invalidation policy:
+    //   AUTH_INVALID  -> server rejected the token outright (forged/wrong issuer)
+    //   AUTH_EXPIRED  -> token TTL elapsed
+    // Both mean the persisted token must be discarded so subsequent requests
+    // don't keep sending a known-bad header. AUTH_REQUIRED means there was no
+    // header to begin with, so no clear is needed.
+    if (payload.code === 'AUTH_INVALID' || payload.code === 'AUTH_EXPIRED') {
+      void clearSessionToken();
+    }
     throw new ApiError({
       code: payload.code,
       message: payload.message,

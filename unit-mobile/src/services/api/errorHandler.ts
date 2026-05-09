@@ -1,11 +1,33 @@
 // UI-level classification of ApiError, derived from
 // docs/backend-contract/03_ERROR_HANDLING_CONTRACT.md.
+//
+// IMPORTANT — separation of concerns:
+//   - Token invalidation (clear stored sessionToken on AUTH_INVALID / AUTH_EXPIRED)
+//     is performed by apiClient as a side effect of the response handler. UI code
+//     does NOT need to call clearSessionToken() itself.
+//   - This module returns only an ErrorKind that the UI can use to pick a state
+//     (login screen, toast, inline form error, etc).
+//
+// AUTH policy summary (per spec):
+//   AUTH_REQUIRED  -> no header was sent (or auth-required path). UI: prompt login.
+//                     Token clear: not needed.
+//   AUTH_INVALID   -> token was rejected. UI: prompt login.
+//                     Token clear: yes (handled by apiClient).
+//   AUTH_EXPIRED   -> token TTL elapsed. UI: prompt re-auth (refresh-token flow is
+//                     not yet wired — see docs/integration/03_*.md TODO).
+//                     Token clear: yes (handled by apiClient).
+//
+// FEATURE_RESERVED   -> "준비 중" placeholder. Do NOT call reserved endpoints
+//                       intentionally; treat it as an error of last resort.
+// VALIDATION_FAILED  -> form-field errors via ApiError.validationFields.
+// BUSINESS_RULE_VIOLATION -> guided empty state (e.g. Feed school/department
+//                       missing -> profile prompt).
 
 import { ApiError } from './apiTypes';
 
 export type ErrorKind =
-  | 'auth-required'      // AUTH_REQUIRED, AUTH_INVALID  -> redirect to login
-  | 'auth-expired'       // AUTH_EXPIRED                 -> try refresh, else login
+  | 'auth-required'      // AUTH_REQUIRED, AUTH_INVALID  -> login screen
+  | 'auth-expired'       // AUTH_EXPIRED                 -> re-auth prompt
   | 'forbidden'          // FORBIDDEN, USER_SUSPENDED    -> "권한이 없습니다"
   | 'not-found'          // NOT_FOUND                    -> empty / back
   | 'validation'         // VALIDATION_FAILED            -> form-field errors
@@ -50,6 +72,11 @@ export function classifyError(err: unknown): ErrorKind {
     default:
       return 'unknown';
   }
+}
+
+/** True if the UI should send the user to the login screen (or refresh flow). */
+export function requiresLoginRedirect(kind: ErrorKind): boolean {
+  return kind === 'auth-required' || kind === 'auth-expired';
 }
 
 /** Pulls a human-friendly message off any error, defaulting to a generic one. */

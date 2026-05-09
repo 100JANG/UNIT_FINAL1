@@ -29,15 +29,9 @@ import type { RootStackProps } from '../types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Inline adapters: bridge legacy `postId/courseId` → v2 `id` so existing
-// `navigate('PostDetail', { postId })` call sites compile and work.
-function PostDetailAdapter(props: RootStackProps<'PostDetail'>) {
-  const adapted = {
-    ...props,
-    route: { ...props.route, params: { id: props.route.params.postId } },
-  };
-  return <PostDetailV2 {...(adapted as any)} />;
-}
+// Inline adapters: bridge legacy `courseId` → v2 `id`.
+// PostDetail no longer needs renaming — both stacks now use `postId: string`,
+// so it's wired directly without an adapter.
 function CourseDetailAdapter(props: RootStackProps<'CourseDetail'>) {
   const adapted = {
     ...props,
@@ -73,7 +67,7 @@ export default function RootNavigator() {
         component={WriteScreen}
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
-      <Stack.Screen name="PostDetail" component={PostDetailAdapter} />
+      <Stack.Screen name="PostDetail" component={PostDetailV2} />
       <Stack.Screen name="Courses" component={CoursesScreen} />
       <Stack.Screen name="CourseDetail" component={CourseDetailAdapter} />
       <Stack.Screen

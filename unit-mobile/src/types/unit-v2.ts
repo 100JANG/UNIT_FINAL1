@@ -18,7 +18,7 @@ export type UnitV2ParamList = {
 
   // Feed (3)
   Feed: undefined;
-  PostDetail: { id: number };
+  PostDetail: { postId: string };
   Write: { board?: string };
 
   // Campus Hub (6)
@@ -85,7 +85,7 @@ export type RootStackParamList = {
 } & {
   // Existing routes (legacy, kept for backwards compat — see PR-11~14)
   Write: undefined;
-  PostDetail: { postId: number };
+  PostDetail: { postId: string };
   Courses: undefined;
   CourseDetail: { courseId: number };
   CourseReview: { courseId: number };

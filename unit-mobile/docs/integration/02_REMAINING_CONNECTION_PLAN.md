@@ -13,13 +13,13 @@
   - 인증 컨텍스트(zustand 또는 Context API) 설계
 - 참고: [05_AUTH_TOKEN_CONTRACT.md](../backend-contract/05_AUTH_TOKEN_CONTRACT.md)
 
-### Cycle B — Post Detail
+### ~~Cycle B — Post Detail~~ → **완료 (Cycle 3)**
 - 화면: `screens/v2/PostDetailScreen.tsx`
-- API: `GET /v1/posts/{postId}`
-- 선행: `RootStackParamList.PostDetail` 라우트 타입을 `{ postId: number }` → `{ postId: string }`로 마이그레이션
-  (mock에서 사용 중인 numeric id도 함께 정리)
-- 매퍼: `PostDetailResponse → PostDetail`
-- 상태: loading / success / not-found / error / forbidden
+- API: `GET /v1/posts/{postId}` ✅
+- 선행: PostDetail route 타입 string 마이그레이션 → Cycle 2 완료
+- 매퍼: `PostDetailResponse → PostDetail` → [postDetailMapper.ts](../../src/services/api/mappers/postDetailMapper.ts)
+- 상태: idle / loading / success / not-found / auth-required / forbidden / reserved / error
+- 상세: [04_POST_DETAIL_CONNECTION_REPORT.md](04_POST_DETAIL_CONNECTION_REPORT.md)
 
 ### Cycle C — Comments
 - 화면: `screens/v2/PostDetailScreen.tsx`(목록), `screens/v2/CommentThreadScreen.tsx`(스레드)

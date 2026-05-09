@@ -6,7 +6,7 @@ export type RootStackParamList = {
   Tabs: undefined;
   UnitV2: { screen?: string; params?: object } | undefined;
   Write: undefined;
-  PostDetail: { postId: number };
+  PostDetail: { postId: string };
   Courses: undefined;
   CourseDetail: { courseId: number };
   CourseReview: { courseId: number };
