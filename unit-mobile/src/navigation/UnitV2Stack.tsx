@@ -43,6 +43,9 @@ import FriendsV2 from '../screens/v2/FriendsScreen';
 import JuryV2 from '../screens/v2/JuryScreen';
 import NotificationsV2 from '../screens/v2/NotificationsScreen';
 import ProfileV2 from '../screens/v2/ProfileScreen';
+import CoursesV2 from '../screens/v2/CoursesScreen';
+import CourseDetailV2 from '../screens/v2/CourseDetailScreen';
+import CourseReviewV2 from '../screens/v2/CourseReviewScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -144,6 +147,9 @@ const REAL_SCREENS: Partial<
   Jury: JuryV2,
   Notifications: NotificationsV2,
   Profile: ProfileV2,
+  Courses: CoursesV2,
+  CourseDetail: CourseDetailV2,
+  CourseReview: CourseReviewV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };
