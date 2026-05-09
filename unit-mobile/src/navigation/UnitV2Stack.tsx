@@ -14,6 +14,10 @@ import SchoolSelectV2 from '../screens/v2/SchoolSelectScreen';
 import LoginV2 from '../screens/v2/LoginScreen';
 import EmailVerifyV2 from '../screens/v2/EmailVerifyScreen';
 import ProfileSetupV2 from '../screens/v2/ProfileSetupScreen';
+import SearchV2 from '../screens/v2/SearchScreen';
+import MyPostsV2 from '../screens/v2/MyPostsScreen';
+import MyCommentsV2 from '../screens/v2/MyCommentsScreen';
+import ScrapsV2 from '../screens/v2/ScrapsScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -86,6 +90,10 @@ const REAL_SCREENS: Partial<
   Login: LoginV2,
   EmailVerify: EmailVerifyV2,
   ProfileSetup: ProfileSetupV2,
+  Search: SearchV2,
+  MyPosts: MyPostsV2,
+  MyComments: MyCommentsV2,
+  Scraps: ScrapsV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };
