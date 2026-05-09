@@ -19,9 +19,7 @@ import kr.unit.backend.users.dto.UserStatsResponse;
 import kr.unit.backend.users.repository.UserActivityRepository;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,9 +63,19 @@ public class UserActivityService {
     public CursorPageResponse<UserPostActivityResponse> getMyPosts(String userId, String cursor, int requestedLimit) {
         int limit = PaginationLimits.clamp(requestedLimit);
 
-        List<UserActivityRepository.PostIndexEntry> entries = userActivityRepository.findUserPosts(userId);
-        List<UserPostActivityResponse> resolved = new ArrayList<>(entries.size());
-        for (UserActivityRepository.PostIndexEntry entry : entries) {
+        // RTDB의 orderByChild("createdAt") DESC 인덱스 쿼리. 운영에서는 .indexOn: ["createdAt"] 필요.
+        List<UserActivityRepository.PostIndexEntry> queried;
+        try {
+            queried = userActivityRepository.queryUserPostsDesc(userId, cursor, limit + 1);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "cursor 형식이 올바르지 않습니다");
+        }
+
+        boolean hasMore = queried.size() > limit;
+        List<UserActivityRepository.PostIndexEntry> page = hasMore ? queried.subList(0, limit) : queried;
+
+        List<UserPostActivityResponse> items = new ArrayList<>(page.size());
+        for (UserActivityRepository.PostIndexEntry entry : page) {
             Optional<Post> postOpt = postFirebaseRepository.findById(entry.postId());
             if (postOpt.isEmpty()) {
                 continue;
@@ -77,7 +85,7 @@ public class UserActivityService {
                 continue;
             }
             Map<String, Long> stats = postFirebaseRepository.findStats(post.postId());
-            resolved.add(new UserPostActivityResponse(
+            items.add(new UserPostActivityResponse(
                     post.postId(),
                     post.boardId(),
                     post.title(),
@@ -87,19 +95,30 @@ public class UserActivityService {
                     stats.getOrDefault("comments", 0L)));
         }
 
-        sortDescByTimestamp(resolved, UserPostActivityResponse::createdAt, UserPostActivityResponse::postId);
-        List<UserPostActivityResponse> filtered = applyCursorDesc(resolved, cursor,
-                UserPostActivityResponse::createdAt, UserPostActivityResponse::postId);
-        return slice(filtered, limit,
-                UserPostActivityResponse::createdAt, UserPostActivityResponse::postId);
+        // cursor advance: query window 마지막(가시 항목 아님) 기준으로 만든다 — deleted 항목 건너뛰어도 다음 페이지가 정확히 이어지도록.
+        String nextCursor = null;
+        if (hasMore && !page.isEmpty()) {
+            UserActivityRepository.PostIndexEntry last = page.get(page.size() - 1);
+            nextCursor = CursorCodec.encode(last.createdAt(), last.postId());
+        }
+        return CursorPageResponse.of(items, Cursor.of(nextCursor, hasMore));
     }
 
     public CursorPageResponse<UserCommentActivityResponse> getMyComments(String userId, String cursor, int requestedLimit) {
         int limit = PaginationLimits.clamp(requestedLimit);
 
-        List<UserActivityRepository.CommentIndexEntry> entries = userActivityRepository.findUserComments(userId);
-        List<UserCommentActivityResponse> resolved = new ArrayList<>(entries.size());
-        for (UserActivityRepository.CommentIndexEntry entry : entries) {
+        List<UserActivityRepository.CommentIndexEntry> queried;
+        try {
+            queried = userActivityRepository.queryUserCommentsDesc(userId, cursor, limit + 1);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "cursor 형식이 올바르지 않습니다");
+        }
+
+        boolean hasMore = queried.size() > limit;
+        List<UserActivityRepository.CommentIndexEntry> page = hasMore ? queried.subList(0, limit) : queried;
+
+        List<UserCommentActivityResponse> items = new ArrayList<>(page.size());
+        for (UserActivityRepository.CommentIndexEntry entry : page) {
             if (entry.postId() == null) {
                 continue;
             }
@@ -108,8 +127,9 @@ public class UserActivityService {
                 continue;
             }
             Comment c = commentOpt.get();
+            // 삭제된 댓글은 마스킹된 채로 포함 (Comment 도메인 정책 — list에서 제외하지 않음).
             String content = c.deleted() ? "삭제된 댓글입니다." : c.content();
-            resolved.add(new UserCommentActivityResponse(
+            items.add(new UserCommentActivityResponse(
                     c.commentId(),
                     c.postId(),
                     content,
@@ -118,19 +138,29 @@ public class UserActivityService {
                     c.createdAt()));
         }
 
-        sortDescByTimestamp(resolved, UserCommentActivityResponse::createdAt, UserCommentActivityResponse::commentId);
-        List<UserCommentActivityResponse> filtered = applyCursorDesc(resolved, cursor,
-                UserCommentActivityResponse::createdAt, UserCommentActivityResponse::commentId);
-        return slice(filtered, limit,
-                UserCommentActivityResponse::createdAt, UserCommentActivityResponse::commentId);
+        String nextCursor = null;
+        if (hasMore && !page.isEmpty()) {
+            UserActivityRepository.CommentIndexEntry last = page.get(page.size() - 1);
+            nextCursor = CursorCodec.encode(last.createdAt(), last.commentId());
+        }
+        return CursorPageResponse.of(items, Cursor.of(nextCursor, hasMore));
     }
 
     public CursorPageResponse<UserLikeActivityResponse> getMyLikes(String userId, String cursor, int requestedLimit) {
         int limit = PaginationLimits.clamp(requestedLimit);
 
-        List<UserActivityRepository.LikeIndexEntry> entries = userActivityRepository.findUserLikes(userId);
-        List<UserLikeActivityResponse> resolved = new ArrayList<>(entries.size());
-        for (UserActivityRepository.LikeIndexEntry entry : entries) {
+        List<UserActivityRepository.LikeIndexEntry> queried;
+        try {
+            queried = userActivityRepository.queryUserLikesDesc(userId, cursor, limit + 1);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "cursor 형식이 올바르지 않습니다");
+        }
+
+        boolean hasMore = queried.size() > limit;
+        List<UserActivityRepository.LikeIndexEntry> page = hasMore ? queried.subList(0, limit) : queried;
+
+        List<UserLikeActivityResponse> items = new ArrayList<>(page.size());
+        for (UserActivityRepository.LikeIndexEntry entry : page) {
             Optional<Post> postOpt = postFirebaseRepository.findById(entry.postId());
             if (postOpt.isEmpty()) {
                 continue;
@@ -139,7 +169,7 @@ public class UserActivityService {
             if (post.status() != Post.Status.PUBLISHED) {
                 continue;
             }
-            resolved.add(new UserLikeActivityResponse(
+            items.add(new UserLikeActivityResponse(
                     post.postId(),
                     post.boardId(),
                     post.title(),
@@ -147,11 +177,12 @@ public class UserActivityService {
                     entry.likedAt()));
         }
 
-        sortDescByTimestamp(resolved, UserLikeActivityResponse::likedAt, UserLikeActivityResponse::postId);
-        List<UserLikeActivityResponse> filtered = applyCursorDesc(resolved, cursor,
-                UserLikeActivityResponse::likedAt, UserLikeActivityResponse::postId);
-        return slice(filtered, limit,
-                UserLikeActivityResponse::likedAt, UserLikeActivityResponse::postId);
+        String nextCursor = null;
+        if (hasMore && !page.isEmpty()) {
+            UserActivityRepository.LikeIndexEntry last = page.get(page.size() - 1);
+            nextCursor = CursorCodec.encode(last.likedAt(), last.postId());
+        }
+        return CursorPageResponse.of(items, Cursor.of(nextCursor, hasMore));
     }
 
     public CursorPageResponse<UserScrapActivityResponse> getMyScraps(String userId, String cursor, int requestedLimit) {
@@ -203,53 +234,6 @@ public class UserActivityService {
             nextCursor = CursorCodec.encode(last.scrappedAt(), last.postId());
         }
         return CursorPageResponse.of(items, Cursor.of(nextCursor, hasMore));
-    }
-
-    /**
-     * timestamp DESC + id DESC (tie-breaker)로 정렬한다. timestamp가 null인 항목은 가장 끝(가장 오래된)에 둔다.
-     */
-    private static <T> void sortDescByTimestamp(List<T> list,
-                                                java.util.function.Function<T, Instant> tsOf,
-                                                java.util.function.Function<T, String> idOf) {
-        list.sort(Comparator
-                .comparing(tsOf, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(idOf, Comparator.nullsLast(Comparator.reverseOrder())));
-    }
-
-    /**
-     * DESC 정렬 기준 cursor 이후(=cursor보다 더 오래된) 항목만 남긴다.
-     * 즉 CursorCodec.compare(item, cursor) &lt; 0인 항목만 keep.
-     */
-    private static <T> List<T> applyCursorDesc(List<T> sorted,
-                                               String cursor,
-                                               java.util.function.Function<T, Instant> tsOf,
-                                               java.util.function.Function<T, String> idOf) {
-        if (cursor == null || cursor.isBlank()) {
-            return sorted;
-        }
-        CursorCodec.CursorKey after;
-        try {
-            after = CursorCodec.decode(cursor);
-        } catch (IllegalArgumentException ex) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "cursor 형식이 올바르지 않습니다");
-        }
-        sorted.removeIf(item ->
-                CursorCodec.compare(tsOf.apply(item), idOf.apply(item), after.timestamp(), after.id()) >= 0);
-        return sorted;
-    }
-
-    private static <T> CursorPageResponse<T> slice(List<T> items,
-                                                   int limit,
-                                                   java.util.function.Function<T, Instant> tsOf,
-                                                   java.util.function.Function<T, String> idOf) {
-        boolean hasMore = items.size() > limit;
-        List<T> page = hasMore ? items.subList(0, limit) : items;
-        String nextCursor = null;
-        if (hasMore && !page.isEmpty()) {
-            T last = page.get(page.size() - 1);
-            nextCursor = CursorCodec.encode(tsOf.apply(last), idOf.apply(last));
-        }
-        return CursorPageResponse.of(new ArrayList<>(page), Cursor.of(nextCursor, hasMore));
     }
 
     private static String buildPreview(String content) {

@@ -1,7 +1,168 @@
 # UNIT Backend — Implementation Report
 
-작성일: 2026-05-09 (1차 스캐폴딩 → 빌드 안정화 → Comments → 정합성 → Profile activity → Scrap → RTDB indexed pagination)
+작성일: 2026-05-10 (... → Feed scope/Activity indexed → RTDB Security Rules preflight)
 대상: UNIT/CAMPUS:ON Backend Spring Boot 3.x + Firebase Realtime Database MVP 스캐폴딩 + 핵심 API skeleton
+
+---
+
+## 0f. RTDB Security Rules 배포 전 preflight (8번째 사이클)
+
+이 사이클은 신규 도메인 기능 없이 **Firebase RTDB Security Rules의 배포본을 실제 파일로 생성하고 정합성을 강제**하는
+가드 작업이다. 사용자 지시상 **실제 Firebase 배포는 수행하지 않는다**. rules 파일 + 검증 테스트 + 배포 체크리스트만 정리한다.
+
+### 생성/수정한 Security Rules 파일
+
+| 파일 | 역할 |
+|---|---|
+| `database.rules.json` (신규, 프로젝트 루트) | Firebase CLI 배포 대상의 단일 source-of-truth. default-deny + 경로별 read 허용 + 모든 write false + `.indexOn`. |
+| `firebase.json` (신규, 프로젝트 루트) | `database.rules.json`을 가리키는 Firebase CLI 설정. project id는 포함하지 않음 (운영자가 `firebase use <id>`로 주입). |
+| `database/03_SECURITY_RULES.md` (전면 개편) | rules 사양 문서. §3 read/write 정책 표, §4 금지 경로 목록, §5 `.indexOn` ↔ 코드 query field 1:1 매핑, §6 TODO(custom token claim 강화), §7 배포 명령 요약. |
+| `database/04_SECURITY_RULES_DEPLOYMENT_CHECKLIST.md` (신규) | 운영 첫 배포용 절차 — review → CLI 설치 → project 선택 → emulator dry-run → staging 배포 → prod 배포 → 롤백 절차 + 비밀파일 commit 금지 점검. |
+
+### 검증한 read/write 정책
+
+| 카테고리 | 정책 |
+|---|---|
+| Root | `.read=false`, `.write=false` (default-deny) |
+| 본인-소유 경로 | `auth != null && auth.uid == $userId` (users, sessions, fcm_tokens, review_locks, notifications, user_posts, user_comments, user_likes, user_scraps, user_stats) |
+| 인증 사용자 read 가능 | schools, departments, boards, posts, post_stats, post_likes, post_scraps, post_feeds/all, post_feeds/schools, post_feeds/departments, comments, comment_stats, comment_likes, courses, courses_by_school, course_reviews, course_stats, jury_cases, jury_votes, jury_case_stats |
+| 백엔드 전용 (client read도 차단) | reports, reports_by_post |
+| 모든 client write | **false** — 예외 없음 |
+| Reserved 경로 | rules 자체를 만들지 않음 → root default-deny에 의해 자동 차단 |
+
+### 검증한 `.indexOn`
+
+코드의 `RealtimeDatabaseClient.queryByChildAsc/Desc` 호출의 `orderByChild` 인자와 `database.rules.json`의 `.indexOn`이 1:1 일치함을 확인:
+
+| 코드 호출 | path | orderByChild | `.indexOn` 등재 |
+|---|---|---|---|
+| `PostFirebaseRepository.queryFeedAllDesc` | `/post_feeds/all` | `createdAt` | ✓ + hotScore + commentCount(향후 sort 대비) |
+| `PostFirebaseRepository.queryFeedSchoolDesc` | `/post_feeds/schools/{schoolId}` | `createdAt` | ✓ + hotScore + commentCount |
+| `PostFirebaseRepository.queryFeedDepartmentDesc` | `/post_feeds/departments/{departmentId}` | `createdAt` | ✓ + hotScore + commentCount |
+| `CommentFirebaseRepository.queryByPostAsc` | `/comments/{postId}` | `createdAt` | ✓ |
+| `CourseFirebaseRepository.queryBySchoolAsc` | `/courses_by_school/{schoolId}` | `courseName` | ✓ + professor + semester(검색 강화 대비) |
+| `UserActivityRepository.queryUserPostsDesc` | `/user_posts/{userId}` | `createdAt` | ✓ |
+| `UserActivityRepository.queryUserCommentsDesc` | `/user_comments/{userId}` | `createdAt` | ✓ |
+| `UserActivityRepository.queryUserLikesDesc` | `/user_likes/{userId}` | `likedAt` | ✓ |
+| `UserActivityRepository.queryUserScrapsDesc` | `/user_scraps/{userId}` | `scrappedAt` | ✓ |
+
+`notifications/{userId}`에는 `createdAt`, `isRead`를 함께 등재 (향후 unread 필터 쿼리 `orderByChild("isRead").equalTo(false)` 대비). 본 사이클에서는 사용하지 않음.
+
+스펠링 정합성: `created_at`/`createdAt`, `likeAt`/`likedAt`, `scrapAt`/`scrappedAt` 혼용 없음. 모두 코드와 일치.
+
+### 추가한 테스트
+
+- `src/test/java/kr/unit/backend/security/SecurityRulesContractTest.java` (8 cases):
+  - `rootDefaultsAreDeny` — root `.read`/`.write` 모두 `"false"`
+  - `selfOwnedPathsRequireAuthUidMatch` — 본인-소유 10개 경로 모두 `auth != null && auth.uid == $userId`
+  - `postFeedsAreReadableByAuthenticatedUsers` — all/schools/departments 모두 `auth != null` read + write false
+  - `reportsAreNotClientReadable` — `/reports`, `/reports_by_post` read=false
+  - `noClientWriteIsEverPermitted` — 트리 전체 재귀 검사. 단 하나라도 `.write != "false"`이면 실패
+  - `indexOnMatchesCodeQueryFields` — 코드 query field와 `.indexOn` 1:1 검증 (위 표)
+  - `bannedPathsAreNotPresent` — ai/ocr/gemma/recap/moderation/student_registry/pwa/service_worker 룰 등장 시 실패
+  - `rawJsonHasNoTrueLiteralForReadOrWrite` — `.read: true`/`.write: true` 텍스트 안전망
+
+### 실제 배포 여부
+
+**❌ 수행하지 않음.** 사용자 지시: "실제 Firebase 배포 금지". `database.rules.json`은 staging/prod 환경에 적용되지 않은 상태이며, 운영 첫 배포 시 [`database/04_SECURITY_RULES_DEPLOYMENT_CHECKLIST.md`](database/04_SECURITY_RULES_DEPLOYMENT_CHECKLIST.md)의 §0~§6 절차를 따른다.
+
+### Reserved/금지 정책 준수 확인
+
+- ✅ 새 도메인 기능 추가 없음 (인프라/문서/테스트만)
+- ✅ Course review report 미구현
+- ✅ User settings 미구현
+- ✅ Jury pagination 미구현
+- ✅ AI/OCR/Gemma/Recap 코드 추가 없음 — 룰 자체를 만들지 않아 default-deny
+- ✅ Reserved 응답(`501 FEATURE_RESERVED`) 변경 없음
+- ✅ 실제 Firebase 배포 없음
+- ✅ `serviceAccountKey.json`/`.env`/`firebase-credentials.json` 생성 없음
+- ✅ Firebase project id를 `firebase.json` 또는 코드에 하드코딩하지 않음
+- ✅ 기존 테스트 삭제 없음
+
+---
+
+## 0e. Feed school/department scope + User activity indexed pagination (7번째 사이클)
+
+이 사이클은 신규 도메인 기능 없이 두 가지 정합성 개선만 수행했다:
+1. `GET /v1/posts`의 `scope=school`/`scope=department`를 RTDB `/post_feeds/schools|departments/{id}` 인덱스 쿼리로 실제 동작.
+2. 6차에서 deferral된 `GET /v1/users/me/posts`/`/comments`/`/likes`를 RTDB `queryByChildDesc` 기반으로 교체.
+
+### 개선한 Feed API
+
+| API | 인덱스 path | orderByChild | 정렬 | 비고 |
+|---|---|---|---|---|
+| `GET /v1/posts?scope=school&sort=latest` | `/post_feeds/schools/{viewer.schoolId}` | `createdAt` | DESC | viewer의 schoolId는 `/users/{userId}`에서 lookup |
+| `GET /v1/posts?scope=department&sort=latest` | `/post_feeds/departments/{viewer.departmentId}` | `createdAt` | DESC | 동일 패턴 |
+
+**미등록 처리**: 사용자 RTDB 계정에 schoolId/departmentId가 없으면 `422 BUSINESS_RULE_VIOLATION` (메시지: "학교/학과 정보가 등록되지 않은 사용자는 ... 피드를 조회할 수 없습니다"). 빈 페이지가 아니라 명시적 에러로 응답해 클라이언트가 학적 등록 UI로 유도할 수 있게 한다.
+
+**Feed index write 보장**: `PostService.createPost`가 `UserAccountRepository.findAccount(author.userId())`를 호출해 작성자의 `schoolId`/`departmentId`를 Post 엔티티에 채운다. 이후 `PostFirebaseRepository.save`의 multi-location update가 `/post_feeds/all`, `/post_feeds/schools/{schoolId}`, `/post_feeds/departments/{departmentId}` 3개 인덱스에 동일 feed snapshot을 기록한다. 사용자 계정에 학교/학과가 비어있으면 해당 인덱스 entry는 누락되고 글 자체는 정상 생성(/post_feeds/all에는 항상 포함).
+
+### 개선한 User Activity API
+
+| API | 인덱스 path | orderByChild | 정렬 | 변경 |
+|---|---|---|---|---|
+| `GET /v1/users/me/posts` | `/user_posts/{userId}` | `createdAt` | DESC | 메모리 정렬·슬라이싱 → indexed query 교체 |
+| `GET /v1/users/me/comments` | `/user_comments/{userId}` | `createdAt` | DESC | 동일 |
+| `GET /v1/users/me/likes` | `/user_likes/{userId}` | `likedAt` | DESC | 동일 |
+
+`UserActivityService` 내부의 `sortDescByTimestamp/applyCursorDesc/slice` 헬퍼들은 더 이상 필요 없어 제거 (전부 `RealtimeDatabaseClient.queryByChildDesc` + `CursorCodec.encode/compare`로 단일화).
+
+cursor advance 정책은 `getMyScraps`와 동일: query window 마지막 인덱스 entry 기준으로 cursor를 만들어, 삭제된 글로 가시 항목이 줄어들어도 다음 페이지가 정확히 이어지도록 한다.
+
+### 추가/수정한 RTDB 경로 및 indexOn
+
+신규 path 빌더는 없음 (`postFeedSchoolRoot/postFeedDepartmentRoot/userPostsRoot/userCommentsRoot/userLikesRoot`는 모두 6차에서 추가됨).
+
+`.indexOn` 요건은 6차에서 이미 docs에 명시되어 있으며 본 사이클에서 활용:
+
+| 노드 | indexOn | 사용 API |
+|---|---|---|
+| `/post_feeds/schools/$schoolId` | `["createdAt", "hotScore", "commentCount"]` | `GET /v1/posts?scope=school` |
+| `/post_feeds/departments/$departmentId` | `["createdAt", "hotScore", "commentCount"]` | `GET /v1/posts?scope=department` |
+| `/user_posts/$userId` | `["createdAt"]` | `GET /v1/users/me/posts` |
+| `/user_comments/$userId` | `["createdAt"]` | `GET /v1/users/me/comments` |
+| `/user_likes/$userId` | `["likedAt"]` | `GET /v1/users/me/likes` |
+
+`database/01_REALTIME_DATABASE_MODEL.md §12` 표를 갱신 (인덱스로 동작하는 9개 목록 API + 잔여 1개로 정리). `database/03_SECURITY_RULES.md §5`는 6차에 이미 동일 .indexOn 블록 보존 — 본 사이클에서는 코드와 문서가 일치하는지 점검만 수행.
+
+### 추가/수정된 파일
+
+**main 수정**
+- `posts/service/PostService.java` — 생성자에 `UserAccountRepository` 추가, `createPost`에서 작성자 schoolId/departmentId lookup, `feed`가 `AuthenticatedUser`를 받고 scope 분기 (`buildFeedPage` 헬퍼 + `resolveViewerSchool`/`resolveViewerDepartment`)
+- `posts/controller/PostController.java` — feed에 `@AuthUser AuthenticatedUser` 주입
+- `users/repository/UserActivityRepository.java` — `queryUserPostsDesc`, `queryUserCommentsDesc`, `queryUserLikesDesc` 3개 메서드 추가 (기존 `findUser*`는 backward-compat으로 유지)
+- `users/service/UserActivityService.java` — 3개 getter를 indexed query로 교체, 사용 안 하는 in-memory 헬퍼 3개 (`sortDescByTimestamp/applyCursorDesc/slice`) 제거
+
+**test 수정**
+- `posts/service/PostServiceTest.java` — `viewer` 필드 추가, 기존 4개 feed 호출에 `viewer` 인자 추가, 5개 신규 케이스 (`getPosts_schoolScope_usesSchoolFeedIndex`, `getPosts_departmentScope_usesDepartmentFeedIndex`, `createPost_writesAllFeedIndexes`, `getPosts_schoolScope_missingSchoolId_throwsExpectedError`, `getPosts_departmentScope_missingDepartmentId_throwsExpectedError`)
+- `posts/service/PostScrapServiceTest.java`, `PostReportServiceTest.java`, `comments/service/PostCommentServiceTest.java` — 새 PostService 시그니처(`UserAccountRepository`)로 생성자 호출 갱신
+- `users/service/UserActivityServiceTest.java` — 6개 신규 케이스 (`getMyPosts_usesIndexedQuery`, `getMyComments_usesIndexedQuery`, `getMyLikes_usesIndexedQuery`, `getMyLikes_cursorWorks`, `getMyPosts_excludesDeletedPosts`, `getMyComments_keepsDeletedCommentsMasked`). 기존 `getMyPosts_returnsCursorPage`는 indexed query의 cursor advance 의미(query-window 기준)에 맞춰 expectation 갱신 (deleted 항목이 포함된 page는 가시 항목이 줄어드는 동작 명시)
+
+**문서**
+- `database/01_REALTIME_DATABASE_MODEL.md` — §12에 인덱스 기반 9개 API 표 + Feed index write 흐름 명시, "아직 메모리 pagination인 API"는 `/v1/jury/me/cases` 1개로 축소
+- `IMPLEMENTATION_REPORT.md` — 본 §0e + §2 API 표 갱신 + 남은작업 갱신
+
+### 빌드/테스트 결과 (7차 사이클)
+
+```
+.\gradlew.bat clean test bootJar  →  TODO (run after this commit)
+```
+
+(빌드 실행은 하단 §"테스트 결과" 참고)
+
+### Reserved/금지 정책 준수 확인
+
+- ✅ Course review report 미구현
+- ✅ User settings 미구현
+- ✅ AI/OCR/Gemma/Recap 코드 추가 없음
+- ✅ Reserved 응답(`501 FEATURE_RESERVED`) 변경 없음
+- ✅ RTDB Security Rules 실제 배포 없음 (문서 일치성만 확인)
+- ✅ 새로운 도메인 기능 추가 없음 (인프라/리팩토링만)
+- ✅ 기존 테스트 삭제 없음. `getMyPosts_returnsCursorPage`만 indexed query 의미에 맞춰 expectation 갱신 (테스트 우회가 아니라 변경된 정의에 맞춤)
+- ✅ `CursorCodec`/`PaginationLimits` 단일 출처 유지 — 새 utility 만들지 않음
+- ✅ 모든 RTDB 경로는 `FirebasePath`에서만 조립
+- ✅ Controller → Service → Repository → FirebasePath/Client 의존 방향 준수
 
 ---
 
@@ -847,7 +1008,7 @@ BUILD SUCCESSFUL in 15s
 | Course review report (`POST /v1/courses/{id}/reviews/{rid}/report`) | 미구현 | |
 | `GET /v1/reports/me` | 미구현 | |
 | Feed/Course/Comment/Scrap pagination 고도화 | ✅ **구현 완료 (6차 사이클)** | `RealtimeDatabaseClient.queryByChildDesc/Asc` 추가, `/v1/posts`, `/v1/courses`, `/v1/posts/{id}/comments`, `/v1/users/me/scraps`를 RTDB `orderByChild` 인덱스 쿼리로 교체. `/v1/users/me/posts`/`/comments`/`/likes` + `/v1/jury/me/cases`는 다음 사이클로 deferral |
-| RTDB Security Rules 배포 | 미구현 | `database/03_SECURITY_RULES.md` 기준 룰을 Firebase 콘솔/CLI로 배포해야 프론트의 직접 write를 차단할 수 있음. 코드 외부 작업 |
+| RTDB Security Rules **preflight** | ✅ **완료 (8차 사이클)** | `database.rules.json` + `firebase.json` + `database/03/04` + `SecurityRulesContractTest`. 코드 query field와 `.indexOn` 1:1 정합성 자동 검증. 실제 Firebase 배포는 운영자 수동 작업 (사용자 지시상 본 작업 범위 외). |
 | Auth `/sessions/{userId}/{sessionId}` RTDB 노드 정책 | 미구현 | 현재 stateless JWT만. 디바이스별 세션 추적이 필요해지면 후속 ADR |
 | FCM 실제 발송 | 미구현 | `/fcm_tokens/...` 등록만 받고 실제 push 발송은 미구현 |
 | Request id / audit log | 미구현 | 후속 사이클 |

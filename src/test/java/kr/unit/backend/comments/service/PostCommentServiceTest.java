@@ -45,7 +45,10 @@ class PostCommentServiceTest {
         commentRepo = new CommentFirebaseRepository(fakeDb);
         PostIdGenerator idGen = new PostIdGenerator();
 
-        postService = new PostService(new PostWritePolicy(), postRepo, idGen, clock);
+        postService = new PostService(
+                new PostWritePolicy(), postRepo,
+                new kr.unit.backend.users.repository.UserAccountRepository(fakeDb),
+                idGen, clock);
         service = new PostCommentService(
                 postRepo, commentRepo, new CommentWritePolicy(), idGen, clock);
 

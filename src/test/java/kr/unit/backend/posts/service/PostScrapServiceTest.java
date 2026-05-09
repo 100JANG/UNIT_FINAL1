@@ -37,7 +37,10 @@ class PostScrapServiceTest {
         PostScrapFirebaseRepository scrapRepo = new PostScrapFirebaseRepository(fakeDb);
         PostIdGenerator idGen = new PostIdGenerator();
 
-        postService = new PostService(new PostWritePolicy(), postRepo, idGen, clock);
+        postService = new PostService(
+                new PostWritePolicy(), postRepo,
+                new kr.unit.backend.users.repository.UserAccountRepository(fakeDb),
+                idGen, clock);
         scrapService = new PostScrapService(postRepo, scrapRepo, clock);
 
         author = FixtureFactory.authenticated("u_author", "author@ajou.ac.kr");

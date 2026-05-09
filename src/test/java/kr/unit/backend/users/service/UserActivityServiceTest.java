@@ -72,23 +72,26 @@ class UserActivityServiceTest {
 
     @Test
     void getMyPosts_returnsCursorPage() {
-        // 3 published posts (서로 다른 createdAt) + 1 deleted (제외되어야 함)
+        // 3 published posts + 1 deleted (제외되어야 함). 인덱스 쿼리는 limit+1을 가져온 뒤
+        // service에서 status=PUBLISHED만 통과시키므로, deleted 항목이 포함된 query window는
+        // 가시 항목이 limit보다 적게 나올 수 있다 (cursor는 query window 마지막 기준).
         savePost("p_1", USER_ID, "첫 글", Post.Status.PUBLISHED, Instant.parse("2026-05-01T00:00:00Z"));
         savePost("p_2", USER_ID, "두번째 글", Post.Status.PUBLISHED, Instant.parse("2026-05-02T00:00:00Z"));
         savePost("p_3", USER_ID, "세번째 글", Post.Status.PUBLISHED, Instant.parse("2026-05-03T00:00:00Z"));
         savePost("p_4", USER_ID, "삭제된 글", Post.Status.DELETED_BY_AUTHOR, Instant.parse("2026-05-04T00:00:00Z"));
 
-        // newest first → page1 = p_3, p_2 (limit 2)
+        // page1: query window=[p_4, p_3, p_2] 에서 take(2)=[p_4, p_3] → p_4 제외 → 가시 [p_3].
         CursorPageResponse<UserPostActivityResponse> page1 = service.getMyPosts(USER_ID, null, 2);
         assertThat(page1.items()).extracting(UserPostActivityResponse::postId)
-                .containsExactly("p_3", "p_2");
+                .containsExactly("p_3");
         assertThat(page1.pagination().hasMore()).isTrue();
         assertThat(page1.pagination().cursor()).isNotBlank();
 
+        // page2: cursor가 p_3을 가리키므로 strictly older 항목 [p_2, p_1] (총 2건, limit+1=3 미만 → hasMore=false).
         CursorPageResponse<UserPostActivityResponse> page2 =
                 service.getMyPosts(USER_ID, page1.pagination().cursor(), 2);
         assertThat(page2.items()).extracting(UserPostActivityResponse::postId)
-                .containsExactly("p_1");
+                .containsExactly("p_2", "p_1");
         assertThat(page2.pagination().hasMore()).isFalse();
         assertThat(page2.pagination().cursor()).isNull();
     }
@@ -276,6 +279,124 @@ class UserActivityServiceTest {
         CursorPageResponse<UserScrapActivityResponse> withNegative = service.getMyScraps(USER_ID, null, -10);
         assertThat(withNegative.items()).hasSize(20);
         assertThat(withNegative.pagination().hasMore()).isTrue();
+    }
+
+    @Test
+    void getMyPosts_usesIndexedQuery() {
+        // postId 사전순과 createdAt 정렬이 다르도록 의도 배치하여 sort가 createdAt 기준임을 강제.
+        savePost("p_x", USER_ID, "오래된", Post.Status.PUBLISHED, Instant.parse("2026-05-01T00:00:00Z"));
+        savePost("p_y", USER_ID, "최신",   Post.Status.PUBLISHED, Instant.parse("2026-05-02T00:00:00Z"));
+
+        // savePost는 postRepo.save를 통해 /user_posts/{userId}/{postId}에 createdAt을 함께 기록한다.
+        CursorPageResponse<UserPostActivityResponse> page = service.getMyPosts(USER_ID, null, 10);
+
+        // newest first → p_y → p_x
+        assertThat(page.items()).extracting(UserPostActivityResponse::postId)
+                .containsExactly("p_y", "p_x");
+        assertThat(page.pagination().hasMore()).isFalse();
+    }
+
+    @Test
+    void getMyComments_usesIndexedQuery() {
+        // /comments/{postId}/{commentId}와 /user_comments/{userId}/{commentId} 둘 다 commentRepo.save로 기록됨.
+        // postId 사전순과 createdAt이 다르게 배치.
+        savePost("p_a", "other", "글", Post.Status.PUBLISHED, Instant.parse("2026-05-01T00:00:00Z"));
+        saveComment("c_z", "p_a", USER_ID, null, Instant.parse("2026-05-01T00:00:00Z"), "오래된");
+        saveComment("c_a", "p_a", USER_ID, null, Instant.parse("2026-05-02T00:00:00Z"), "최신");
+
+        CursorPageResponse<UserCommentActivityResponse> page = service.getMyComments(USER_ID, null, 10);
+
+        // newest first by createdAt → c_a (05-02) → c_z (05-01)
+        assertThat(page.items()).extracting(UserCommentActivityResponse::commentId)
+                .containsExactly("c_a", "c_z");
+    }
+
+    @Test
+    void getMyLikes_usesIndexedQuery() {
+        savePost("p_x", "other", "오래된", Post.Status.PUBLISHED, Instant.parse("2026-04-30T00:00:00Z"));
+        savePost("p_y", "other", "최신",   Post.Status.PUBLISHED, Instant.parse("2026-04-30T00:00:00Z"));
+        // user_likes 인덱스를 직접 시드 (likedAt 기준 sort 검증).
+        fakeDb.set("/user_likes/" + USER_ID + "/p_x", Map.of(
+                "postId", "p_x", "likedAt", "2026-05-02T00:00:00Z"));
+        fakeDb.set("/user_likes/" + USER_ID + "/p_y", Map.of(
+                "postId", "p_y", "likedAt", "2026-05-01T00:00:00Z"));
+
+        CursorPageResponse<UserLikeActivityResponse> page = service.getMyLikes(USER_ID, null, 10);
+
+        // likedAt DESC: p_x(05-02) → p_y(05-01)
+        assertThat(page.items()).extracting(UserLikeActivityResponse::postId)
+                .containsExactly("p_x", "p_y");
+    }
+
+    @Test
+    void getMyLikes_cursorWorks() {
+        for (int i = 0; i < 5; i++) {
+            String postId = String.format("p_%02d", i);
+            savePost(postId, "other", "글", Post.Status.PUBLISHED, Instant.parse("2026-04-30T00:00:00Z"));
+            fakeDb.set("/user_likes/" + USER_ID + "/" + postId, Map.of(
+                    "postId", postId,
+                    "likedAt", "2026-05-0" + (i + 1) + "T00:00:00Z"));
+        }
+
+        CursorPageResponse<UserLikeActivityResponse> page1 = service.getMyLikes(USER_ID, null, 2);
+        assertThat(page1.items()).extracting(UserLikeActivityResponse::postId)
+                .containsExactly("p_04", "p_03");
+        assertThat(page1.pagination().hasMore()).isTrue();
+
+        CursorPageResponse<UserLikeActivityResponse> page2 =
+                service.getMyLikes(USER_ID, page1.pagination().cursor(), 2);
+        assertThat(page2.items()).extracting(UserLikeActivityResponse::postId)
+                .containsExactly("p_02", "p_01");
+        assertThat(page2.pagination().hasMore()).isTrue();
+
+        CursorPageResponse<UserLikeActivityResponse> page3 =
+                service.getMyLikes(USER_ID, page2.pagination().cursor(), 2);
+        assertThat(page3.items()).extracting(UserLikeActivityResponse::postId)
+                .containsExactly("p_00");
+        assertThat(page3.pagination().hasMore()).isFalse();
+    }
+
+    @Test
+    void getMyPosts_excludesDeletedPosts() {
+        savePost("p_alive_1", USER_ID, "활성1", Post.Status.PUBLISHED,
+                Instant.parse("2026-05-01T00:00:00Z"));
+        savePost("p_removed", USER_ID, "관리자삭제", Post.Status.REMOVED_BY_ADMIN,
+                Instant.parse("2026-05-02T00:00:00Z"));
+        savePost("p_alive_2", USER_ID, "활성2", Post.Status.PUBLISHED,
+                Instant.parse("2026-05-03T00:00:00Z"));
+        savePost("p_self_deleted", USER_ID, "본인삭제", Post.Status.DELETED_BY_AUTHOR,
+                Instant.parse("2026-05-04T00:00:00Z"));
+
+        CursorPageResponse<UserPostActivityResponse> page = service.getMyPosts(USER_ID, null, 50);
+
+        // newest first 활성만 남음: p_alive_2(05-03), p_alive_1(05-01)
+        assertThat(page.items()).extracting(UserPostActivityResponse::postId)
+                .containsExactly("p_alive_2", "p_alive_1");
+    }
+
+    @Test
+    void getMyComments_keepsDeletedCommentsMasked() {
+        // 삭제된 댓글은 list에서 제외하지 않고 content 마스킹된 상태로 포함된다 (Comment 도메인 정책).
+        savePost("p_a", "other", "글", Post.Status.PUBLISHED, Instant.parse("2026-05-01T00:00:00Z"));
+
+        // 활성 댓글
+        saveComment("c_alive", "p_a", USER_ID, null, Instant.parse("2026-05-02T00:00:00Z"), "활성댓글");
+        // 삭제된 댓글: 본 노드의 deleted 플래그를 직접 true로 마킹
+        saveComment("c_dead", "p_a", USER_ID, null, Instant.parse("2026-05-03T00:00:00Z"), "원본");
+        fakeDb.set("/comments/p_a/c_dead/deleted", true);
+        fakeDb.set("/comments/p_a/c_dead/content", "삭제된 댓글입니다.");
+
+        CursorPageResponse<UserCommentActivityResponse> page = service.getMyComments(USER_ID, null, 10);
+
+        // newest first → c_dead(05-03), c_alive(05-02). 둘 다 결과에 포함되어야 한다.
+        assertThat(page.items()).extracting(UserCommentActivityResponse::commentId)
+                .containsExactly("c_dead", "c_alive");
+        UserCommentActivityResponse dead = page.items().get(0);
+        assertThat(dead.deleted()).isTrue();
+        assertThat(dead.content()).isEqualTo("삭제된 댓글입니다.");
+        UserCommentActivityResponse alive = page.items().get(1);
+        assertThat(alive.deleted()).isFalse();
+        assertThat(alive.content()).isEqualTo("활성댓글");
     }
 
     @Test

@@ -35,7 +35,10 @@ class PostReportServiceTest {
         PostFirebaseRepository postRepo = new PostFirebaseRepository(fakeDb);
         PostReportFirebaseRepository reportRepo = new PostReportFirebaseRepository(fakeDb);
         PostIdGenerator idGen = new PostIdGenerator();
-        postService = new PostService(new PostWritePolicy(), postRepo, idGen, clock);
+        postService = new PostService(
+                new PostWritePolicy(), postRepo,
+                new kr.unit.backend.users.repository.UserAccountRepository(fakeDb),
+                idGen, clock);
         reportService = new PostReportService(postRepo, reportRepo, idGen, clock);
     }
 

@@ -35,12 +35,13 @@ public class PostController {
     }
 
     /**
-     * 피드 조회. RTDB의 /post_feeds/all 인덱스를 createdAt DESC로 조회한다.
+     * 피드 조회. RTDB의 /post_feeds/{scope} 인덱스를 createdAt DESC로 조회한다.
      *
      * <p>Query parameters:
      * <ul>
      *   <li>{@code scope}: {@code all} | {@code school} | {@code department} (기본 {@code all}).
-     *       MVP에서는 {@code all}만 인덱스 쿼리로 구현. 나머지는 빈 페이지로 응답한다.</li>
+     *       school/department는 인증 사용자의 RTDB 계정에서 schoolId/departmentId를 읽어 인덱스 path를 결정한다.
+     *       해당 값이 미등록이면 {@code 422 BUSINESS_RULE_VIOLATION}.</li>
      *   <li>{@code boardId}: 보드 필터 (in-memory 후처리).</li>
      *   <li>{@code sort}: {@code latest} | {@code hot} | {@code comments} (기본 {@code latest}).
      *       MVP에서는 {@code latest}만 인덱스 쿼리로 구현.</li>
@@ -50,12 +51,13 @@ public class PostController {
      */
     @GetMapping
     public ApiResponse<CursorPageResponse<PostFeedItemResponse>> feed(
+            @AuthUser AuthenticatedUser user,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String boardId,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int limit) {
-        return ApiResponse.success(postService.feed(scope, boardId, sort, cursor, limit));
+        return ApiResponse.success(postService.feed(user, scope, boardId, sort, cursor, limit));
     }
 
     @PostMapping

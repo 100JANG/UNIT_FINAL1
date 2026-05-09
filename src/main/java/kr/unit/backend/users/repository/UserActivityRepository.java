@@ -103,6 +103,67 @@ public class UserActivityRepository {
     }
 
     /**
+     * /user_posts/{userId}를 createdAt DESC 인덱스로 페이지 조회한다. 운영에서는 .indexOn: ["createdAt"] 필요.
+     */
+    public List<PostIndexEntry> queryUserPostsDesc(String userId, String cursor, int limitPlusOne) {
+        List<QueryEntry<Map>> entries = realtimeDatabaseClient.queryByChildDesc(
+                FirebasePath.userPostsRoot(userId), "createdAt", cursor, limitPlusOne, Map.class);
+        List<PostIndexEntry> result = new ArrayList<>(entries.size());
+        for (QueryEntry<Map> entry : entries) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) entry.value();
+            if (data == null) {
+                continue;
+            }
+            result.add(new PostIndexEntry(
+                    str(data.get("postId"), entry.key()),
+                    parseInstant(str(data.get("createdAt"), null))));
+        }
+        return result;
+    }
+
+    /**
+     * /user_comments/{userId}를 createdAt DESC 인덱스로 페이지 조회한다. 운영에서는 .indexOn: ["createdAt"] 필요.
+     */
+    public List<CommentIndexEntry> queryUserCommentsDesc(String userId, String cursor, int limitPlusOne) {
+        List<QueryEntry<Map>> entries = realtimeDatabaseClient.queryByChildDesc(
+                FirebasePath.userCommentsRoot(userId), "createdAt", cursor, limitPlusOne, Map.class);
+        List<CommentIndexEntry> result = new ArrayList<>(entries.size());
+        for (QueryEntry<Map> entry : entries) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) entry.value();
+            if (data == null) {
+                continue;
+            }
+            result.add(new CommentIndexEntry(
+                    str(data.get("commentId"), entry.key()),
+                    str(data.get("postId"), null),
+                    parseInstant(str(data.get("createdAt"), null))));
+        }
+        return result;
+    }
+
+    /**
+     * /user_likes/{userId}를 likedAt DESC 인덱스로 페이지 조회한다. 운영에서는 .indexOn: ["likedAt"] 필요.
+     */
+    public List<LikeIndexEntry> queryUserLikesDesc(String userId, String cursor, int limitPlusOne) {
+        List<QueryEntry<Map>> entries = realtimeDatabaseClient.queryByChildDesc(
+                FirebasePath.userLikesRoot(userId), "likedAt", cursor, limitPlusOne, Map.class);
+        List<LikeIndexEntry> result = new ArrayList<>(entries.size());
+        for (QueryEntry<Map> entry : entries) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) entry.value();
+            if (data == null) {
+                continue;
+            }
+            result.add(new LikeIndexEntry(
+                    str(data.get("postId"), entry.key()),
+                    parseInstant(str(data.get("likedAt"), null))));
+        }
+        return result;
+    }
+
+    /**
      * 게시판 이름을 /boards/{boardId}/name에서 lookup한다. 없으면 빈 Optional.
      */
     public Optional<String> findBoardName(String boardId) {

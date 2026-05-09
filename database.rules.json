@@ -1,0 +1,232 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false
+      }
+    },
+
+    "sessions": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false
+      }
+    },
+
+    "fcm_tokens": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false
+      }
+    },
+
+    "schools": {
+      ".read": "auth != null",
+      ".write": false
+    },
+
+    "departments": {
+      ".read": "auth != null",
+      ".write": false
+    },
+
+    "boards": {
+      ".read": "auth != null",
+      ".write": false
+    },
+
+    "posts": {
+      "$postId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "post_stats": {
+      "$postId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "post_likes": {
+      "$postId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "post_scraps": {
+      "$postId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "post_feeds": {
+      "all": {
+        ".read": "auth != null",
+        ".write": false,
+        ".indexOn": ["createdAt", "hotScore", "commentCount"]
+      },
+      "schools": {
+        "$schoolId": {
+          ".read": "auth != null",
+          ".write": false,
+          ".indexOn": ["createdAt", "hotScore", "commentCount"]
+        }
+      },
+      "departments": {
+        "$departmentId": {
+          ".read": "auth != null",
+          ".write": false,
+          ".indexOn": ["createdAt", "hotScore", "commentCount"]
+        }
+      }
+    },
+
+    "comments": {
+      "$postId": {
+        ".read": "auth != null",
+        ".write": false,
+        ".indexOn": ["createdAt"]
+      }
+    },
+
+    "comment_stats": {
+      "$commentId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "comment_likes": {
+      "$commentId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "courses": {
+      "$courseId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "courses_by_school": {
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": false,
+        ".indexOn": ["courseName", "professor", "semester"]
+      }
+    },
+
+    "course_reviews": {
+      "$courseId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "course_stats": {
+      "$courseId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "review_locks": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false
+      }
+    },
+
+    "reports": {
+      "$reportId": {
+        ".read": false,
+        ".write": false
+      }
+    },
+
+    "reports_by_post": {
+      "$postId": {
+        ".read": false,
+        ".write": false
+      }
+    },
+
+    "jury_cases": {
+      "$caseId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "jury_votes": {
+      "$caseId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "jury_case_stats": {
+      "$caseId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
+    "notifications": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false,
+        ".indexOn": ["createdAt", "isRead"]
+      }
+    },
+
+    "user_posts": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false,
+        ".indexOn": ["createdAt"]
+      }
+    },
+
+    "user_comments": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false,
+        ".indexOn": ["createdAt"]
+      }
+    },
+
+    "user_likes": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false,
+        ".indexOn": ["likedAt"]
+      }
+    },
+
+    "user_scraps": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false,
+        ".indexOn": ["scrappedAt"]
+      }
+    },
+
+    "user_stats": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": false
+      }
+    }
+  }
+}

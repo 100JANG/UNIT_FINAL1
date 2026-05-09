@@ -327,16 +327,42 @@ Repository(`PostScrapFirebaseRepository`)가 multi-location update + transaction
 }
 ```
 
+### 인덱스 기반으로 동작하는 목록 API (확정)
+
+| API | RTDB 부모 path | orderByChild | 정렬 |
+|---|---|---|---|
+| `GET /v1/posts` (scope=all) | `/post_feeds/all` | `createdAt` | DESC |
+| `GET /v1/posts` (scope=school) | `/post_feeds/schools/{viewer.schoolId}` | `createdAt` | DESC |
+| `GET /v1/posts` (scope=department) | `/post_feeds/departments/{viewer.departmentId}` | `createdAt` | DESC |
+| `GET /v1/posts/{postId}/comments` | `/comments/{postId}` | `createdAt` | ASC |
+| `GET /v1/courses` (schoolId 필수) | `/courses_by_school/{schoolId}` | `courseName` | ASC |
+| `GET /v1/users/me/posts` | `/user_posts/{userId}` | `createdAt` | DESC |
+| `GET /v1/users/me/comments` | `/user_comments/{userId}` | `createdAt` | DESC |
+| `GET /v1/users/me/likes` | `/user_likes/{userId}` | `likedAt` | DESC |
+| `GET /v1/users/me/scraps` | `/user_scraps/{userId}` | `scrappedAt` | DESC |
+
+scope=school/department는 인증 사용자의 RTDB 계정에서 schoolId/departmentId를 lookup하여 인덱스 path를 결정한다.
+이 값이 미등록이면 `422 BUSINESS_RULE_VIOLATION`으로 응답한다.
+
+게시글 작성 시 `PostFirebaseRepository.save`가 양방향 multi-location update로 다음 인덱스를 모두 기록한다:
+
+```
+/posts/{postId}
+/post_feeds/all/{postId}
+/post_feeds/schools/{authorSchoolId}/{postId}        # author.schoolId가 비어있으면 skip
+/post_feeds/departments/{authorDeptId}/{postId}      # author.departmentId가 비어있으면 skip
+/post_stats/{postId}
+/user_posts/{authorId}/{postId}
+```
+
+작성자의 schoolId/departmentId는 `UserAccountRepository.findAccount(author.userId())`로 RTDB의 `/users/{userId}`에서
+조회한다. 사용자 계정에 해당 값이 미등록이면 단순히 해당 인덱스 entry는 누락되고 게시글 자체는 정상 생성된다.
+
 ### 아직 메모리 pagination인 API (이번 사이클 외)
 
 | API | 사유 |
 |---|---|
-| `GET /v1/users/me/posts` | 이미 `/user_posts/{userId}`에 createdAt 인덱스가 있어 다음 사이클에서 `queryByChildDesc`로 교체 예정 |
-| `GET /v1/users/me/comments` | 이미 `/user_comments/{userId}`에 createdAt 인덱스가 있어 동일 |
-| `GET /v1/users/me/likes` | 이미 `/user_likes/{userId}`에 likedAt 인덱스가 있어 동일 |
-| `GET /v1/jury/me/cases` | 인덱스 노드(`/jury_cases_by_department`)가 별도 흐름이라 후속 작업으로 분리 |
-
-위 4개는 사용자 지시상 우선순위 3으로 deferral. 현재 메모리 정렬·슬라이싱 동작은 유지된다(테스트도 그대로 통과).
+| `GET /v1/jury/me/cases` | 인덱스 노드(`/jury_cases_by_department`)가 별도 흐름이고 `summonedJurors` 필터가 필요해 인덱스 설계 추가가 선행 필요. 후속 사이클로 분리. |
 
 ### 인덱스 미사용 sort
 
