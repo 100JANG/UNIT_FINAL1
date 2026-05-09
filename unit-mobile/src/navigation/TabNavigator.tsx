@@ -14,7 +14,7 @@ import {
 
 import FeedScreen from '../screens/FeedScreen';
 import CampusHubScreen from '../screens/CampusHubScreen';
-import ChatListScreen from '../screens/ChatListScreen';
+import ChatListScreen from '../screens/wrappers/ChatListWrapper';
 import ProfileScreen from '../screens/wrappers/ProfileWrapper';
 
 const Tab = createBottomTabNavigator<TabParamList>();

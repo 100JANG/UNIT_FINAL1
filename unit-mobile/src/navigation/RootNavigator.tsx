@@ -9,7 +9,7 @@ import CoursesScreen from '../screens/wrappers/CoursesWrapper';
 import CourseDetailScreen from '../screens/wrappers/CourseDetailWrapper';
 import CourseReviewScreen from '../screens/wrappers/CourseReviewWrapper';
 import JuryScreen from '../screens/wrappers/JuryWrapper';
-import ChatRoomScreen from '../screens/ChatRoomScreen';
+import ChatRoomScreen from '../screens/wrappers/ChatRoomWrapper';
 import NotificationsScreen from '../screens/wrappers/NotificationsWrapper';
 import MannerGradeScreen from '../screens/MannerGradeScreen';
 import MannerLadderScreen from '../screens/MannerLadderScreen';

@@ -142,6 +142,17 @@ export const IcPlus = ({ size = 18, color = C.text }: IconProps) => (
   </Svg>
 );
 
+export const IcSend = ({ size = 20, color = C.text }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M4 12 20 4l-7 16-2-7-7-1Z"
+      stroke={color}
+      strokeWidth={1.7}
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
 // Aggregate for convenient `Ic.search(...)` style call sites
 export const Ic = {
   search:   IcSearch,
@@ -158,4 +169,5 @@ export const Ic = {
   check:    IcCheck,
   pencil:   IcPencil,
   plus:     IcPlus,
+  send:     IcSend,
 };
