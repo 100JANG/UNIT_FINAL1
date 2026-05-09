@@ -1,5 +1,4 @@
 import 'react-native-gesture-handler';
-import './global.css';
 
 import { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';

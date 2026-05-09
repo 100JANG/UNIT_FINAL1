@@ -3,29 +3,66 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
 import TabNavigator from './TabNavigator';
-import WriteScreen from '../screens/wrappers/WriteWrapper';
-import PostDetailScreen from '../screens/wrappers/PostDetailWrapper';
-import CoursesScreen from '../screens/wrappers/CoursesWrapper';
-import CourseDetailScreen from '../screens/wrappers/CourseDetailWrapper';
-import CourseReviewScreen from '../screens/wrappers/CourseReviewWrapper';
-import JuryScreen from '../screens/wrappers/JuryWrapper';
-import ChatRoomScreen from '../screens/wrappers/ChatRoomWrapper';
-import NotificationsScreen from '../screens/wrappers/NotificationsWrapper';
-import MannerGradeScreen from '../screens/MannerGradeScreen';
-import MannerLadderScreen from '../screens/MannerLadderScreen';
-import TimetableScreen from '../screens/TimetableScreen';
-import MealScreen from '../screens/MealScreen';
-import BusScreen from '../screens/BusScreen';
-import LibraryScreen from '../screens/LibraryScreen';
-import ContactsScreen from '../screens/ContactsScreen';
-import ContestScreen from '../screens/ContestScreen';
-import JobsScreen from '../screens/JobsScreen';
-import MarketScreen from '../screens/MarketScreen';
-import FriendsScreen from '../screens/FriendsScreen';
 import UnitV2Stack from './UnitV2Stack';
+
+import WriteScreen from '../screens/v2/WriteScreen';
+import PostDetailV2 from '../screens/v2/PostDetailScreen';
+import CoursesScreen from '../screens/v2/CoursesScreen';
+import CourseDetailV2 from '../screens/v2/CourseDetailScreen';
+import CourseReviewV2 from '../screens/v2/CourseReviewScreen';
+import JuryScreen from '../screens/v2/JuryScreen';
+import ChatRoomScreen from '../screens/v2/ChatRoomScreen';
+import NotificationsScreen from '../screens/v2/NotificationsScreen';
+import MannerGradeScreen from '../screens/v2/MannerGradeScreen';
+import MannerLadderScreen from '../screens/v2/MannerLadderScreen';
+import TimetableScreen from '../screens/v2/TimetableScreen';
+import MealScreen from '../screens/v2/MealScreen';
+import BusScreen from '../screens/v2/BusScreen';
+import LibraryScreen from '../screens/v2/LibraryScreen';
+import ContactsScreen from '../screens/v2/ContactsScreen';
+import ContestScreen from '../screens/v2/ContestScreen';
+import JobsScreen from '../screens/v2/JobsScreen';
+import MarketScreen from '../screens/v2/MarketScreen';
+import FriendsScreen from '../screens/v2/FriendsScreen';
+
+import type { RootStackProps } from '../types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Inline adapters: bridge legacy `postId/courseId` → v2 `id` so existing
+// `navigate('PostDetail', { postId })` call sites compile and work.
+function PostDetailAdapter(props: RootStackProps<'PostDetail'>) {
+  const adapted = {
+    ...props,
+    route: { ...props.route, params: { id: props.route.params.postId } },
+  };
+  return <PostDetailV2 {...(adapted as any)} />;
+}
+function CourseDetailAdapter(props: RootStackProps<'CourseDetail'>) {
+  const adapted = {
+    ...props,
+    route: { ...props.route, params: { id: props.route.params.courseId } },
+  };
+  return <CourseDetailV2 {...(adapted as any)} />;
+}
+function CourseReviewAdapter(props: RootStackProps<'CourseReview'>) {
+  const adapted = {
+    ...props,
+    route: { ...props.route, params: { id: props.route.params.courseId } },
+  };
+  return <CourseReviewV2 {...(adapted as any)} />;
+}
+
+/**
+ * Root navigator — all v2 screens promoted (PR-15).
+ *
+ * Legacy flat-stack routes still preserved for backwards-compat call sites
+ * (PostDetail with `postId`, CourseDetail/Review with `courseId`). Inline
+ * adapters bridge legacy params to v2 params.
+ *
+ * UnitV2 nested stack (used via `navigate('UnitV2', { screen: 'Foo' })`)
+ * provides the full 36-route hierarchy in v2-native param shape.
+ */
 export default function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -36,12 +73,12 @@ export default function RootNavigator() {
         component={WriteScreen}
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
-      <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+      <Stack.Screen name="PostDetail" component={PostDetailAdapter} />
       <Stack.Screen name="Courses" component={CoursesScreen} />
-      <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
+      <Stack.Screen name="CourseDetail" component={CourseDetailAdapter} />
       <Stack.Screen
         name="CourseReview"
-        component={CourseReviewScreen}
+        component={CourseReviewAdapter}
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
@@ -64,7 +101,6 @@ export default function RootNavigator() {
       <Stack.Screen name="Market" component={MarketScreen} />
       <Stack.Screen name="Friends" component={FriendsScreen} />
 
-      {/* PR-02: nested v2 navigator. Access via navigate('UnitV2', { screen: 'Feed' }). */}
       <Stack.Screen name="UnitV2" component={UnitV2Stack} />
     </Stack.Navigator>
   );
