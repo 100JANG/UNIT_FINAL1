@@ -21,8 +21,9 @@ export type PostDetailDto = {
   stats: { likes: number; comments: number; scraps: number };
 };
 
-/** Response item of GET /v1/posts/{postId}/comments. Not wired this cycle —
- *  type-only, kept here so future consumers don't redeclare it. */
+/** Response item of GET /v1/posts/{postId}/comments.
+ *  Flat shape — backend does NOT nest under `author` and there is no
+ *  `updatedAt` / `isMyComment`. Sort is chronological (createdAt ASC). */
 export type CommentDto = {
   commentId: string;
   postId: string;
@@ -30,9 +31,25 @@ export type CommentDto = {
   anonymousId: string;
   content: string;
   createdAt: string;
-  updatedAt: string;
   likes: number;
-  deleted?: boolean;
+  /** Soft-delete flag. Backend already replaces `content` with the localized
+   *  marker ("삭제된 댓글입니다.") server-side; the UI only needs to dim. */
+  deleted: boolean;
+};
+
+/** UI-shaped comment used by PostDetail's comment list. */
+export type CommentItem = {
+  id: string;
+  postId: string;
+  parentCommentId: string | null;
+  anonymousId: string;
+  content: string;
+  createdAt: string;
+  likeCount: number;
+  deleted: boolean;
+  /** Reserved for the future like/delete cycle. Backend GET does not return
+   *  ownership info, so this is always undefined for now. */
+  isMyComment?: boolean;
 };
 
 // ---- UI shape (what screens render) -----------------------------------------

@@ -24,10 +24,12 @@
 ### Cycle C — Comments
 - 화면: `screens/v2/PostDetailScreen.tsx`(목록), `screens/v2/CommentThreadScreen.tsx`(스레드)
 - API:
-  - `GET /v1/posts/{postId}/comments?parentId=&cursor=&limit=`
-  - `POST /v1/posts/{postId}/comments`
-  - `DELETE /v1/posts/{postId}/comments/{commentId}`
+  - ✅ `GET /v1/posts/{postId}/comments?cursor=&limit=` — **Cycle 4 완료** ([05_COMMENTS_CONNECTION_REPORT.md](05_COMMENTS_CONNECTION_REPORT.md))
+  - ⏳ `POST /v1/posts/{postId}/comments` — 다음 사이클
+  - ⏳ `POST /v1/posts/{postId}/comments/{commentId}/like` — 다음 사이클
+  - ⏳ `DELETE /v1/posts/{postId}/comments/{commentId}` — 다음 사이클
 - 주의: 경로는 `/v1/posts/{postId}/comments`이며 `/post_comments` 형태 사용 금지.
+- 이월: `UnitV2ParamList.CommentThread.commentId`를 number → string으로 마이그레이션 필요 (Comment write 사이클과 함께).
 
 ### Cycle D — Like / Scrap
 - API:

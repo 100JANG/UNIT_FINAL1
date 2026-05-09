@@ -21,19 +21,11 @@ import {
 import { C, F, R, SP } from '../../theme/tokens';
 import type { RootStackParamList } from '../../types';
 import { usePostDetail } from '../../hooks/usePostDetail';
-import type { PostDetail } from '../../types/post';
+import { usePostComments } from '../../hooks/usePostComments';
+import type { CommentItem, PostDetail } from '../../types/post';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type R$ = RouteProp<RootStackParamList, 'PostDetail'>;
-
-// Mock comment thread used as a placeholder while Comments API is not yet
-// connected. Backend GET /v1/posts/{postId} does not embed comments — they live
-// at GET /v1/posts/{postId}/comments (next cycle). Toggle states below are
-// local-only on purpose: like/scrap toggle endpoints are also out of scope.
-const MOCK_COMMENTS = [
-  { id: 1, nick: '익명1', time: '8분 전', body: '댓글 API 연결 전 임시 표시입니다.', up: 4 },
-  { id: 2, nick: '익명2', time: '6분 전', body: 'Cycle 4에서 실제 댓글로 교체됩니다.', up: 1 },
-];
 
 function formatRelative(iso: string): string {
   const d = new Date(iso);
@@ -100,13 +92,13 @@ export default function PostDetailV2() {
           <PrimaryButton label="다시 시도" onPress={refetch} />
         </CenteredState>
       ) : post ? (
-        <PostBody post={post} navigation={navigation} />
+        <PostBody post={post} />
       ) : null}
     </Screen>
   );
 }
 
-function PostBody({ post, navigation }: { post: PostDetail; navigation: Nav }) {
+function PostBody({ post }: { post: PostDetail }) {
   const [draft, setDraft] = useState('');
   const [liked, setLiked] = useState(post.myActions?.liked ?? false);
   const [scrapped, setScrapped] = useState(post.myActions?.scrapped ?? false);
@@ -176,29 +168,7 @@ function PostBody({ post, navigation }: { post: PostDetail; navigation: Nav }) {
         </Pressable>
       </View>
 
-      {/* Mock placeholder until Comments API is connected next cycle. */}
-      {MOCK_COMMENTS.map(c => (
-        <View key={c.id} style={styles.commentRow}>
-          <View style={styles.commentHead}>
-            <Avatar name={c.nick} size={24} />
-            <Text style={styles.commentNick}>{c.nick}</Text>
-            <Text style={styles.commentTime}>{c.time}</Text>
-          </View>
-          <Text style={styles.commentBody}>{c.body}</Text>
-          <View style={styles.commentFoot}>
-            <Pressable hitSlop={6} style={styles.thumbRow}>
-              <IcThumb size={12} color={C.hint} />
-              <Text style={styles.thumbCount}>{c.up}</Text>
-            </Pressable>
-            <Pressable
-              hitSlop={6}
-              onPress={() => navigation.navigate('UnitV2', { screen: 'CommentThread', params: { commentId: c.id } })}
-            >
-              <Text style={styles.replyLink}>답글</Text>
-            </Pressable>
-          </View>
-        </View>
-      ))}
+      <CommentsSection postId={post.postId} />
 
       <View style={styles.inputBar}>
         <TextInput
@@ -213,6 +183,116 @@ function PostBody({ post, navigation }: { post: PostDetail; navigation: Nav }) {
         </Pressable>
       </View>
     </>
+  );
+}
+
+function CommentsSection({ postId }: { postId: string }) {
+  const { status, comments, error, hasMore, isLoadingMore, loadMore, refetch } =
+    usePostComments({ postId });
+
+  if (status === 'loading' || status === 'idle') {
+    return (
+      <View style={styles.commentsState}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (status === 'auth-required') {
+    return (
+      <View style={styles.commentsState}>
+        <Text style={styles.commentsStateTitle}>댓글을 보려면 로그인이 필요합니다</Text>
+        <Text style={styles.commentsStateBody}>
+          개발 단계에서는 피드 상단의 DEV 패널에서 sessionToken을 입력해주세요.
+        </Text>
+      </View>
+    );
+  }
+
+  if (status === 'reserved') {
+    return (
+      <View style={styles.commentsState}>
+        <Text style={styles.commentsStateTitle}>준비 중인 기능입니다</Text>
+        <Text style={styles.commentsStateBody}>{error?.message ?? '곧 제공될 예정입니다.'}</Text>
+      </View>
+    );
+  }
+
+  if (status === 'not-found') {
+    return (
+      <View style={styles.commentsState}>
+        <Text style={styles.commentsStateTitle}>댓글을 불러올 수 없습니다</Text>
+        <Text style={styles.commentsStateBody}>{error?.message ?? '글이 삭제되었을 수 있습니다.'}</Text>
+      </View>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <View style={styles.commentsState}>
+        <Text style={styles.commentsStateTitle}>댓글을 불러오지 못했습니다</Text>
+        <Text style={styles.commentsStateBody}>{error?.message ?? '잠시 후 다시 시도해주세요.'}</Text>
+        <Pressable onPress={refetch} style={styles.retryBtn}>
+          <Text style={styles.retryText}>댓글 다시 불러오기</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (comments.length === 0) {
+    return (
+      <View style={styles.commentsState}>
+        <Text style={styles.commentsStateBody}>아직 댓글이 없어요</Text>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      {comments.map(c => (
+        <CommentRow key={c.id} comment={c} />
+      ))}
+      {hasMore && (
+        <Pressable
+          onPress={loadMore}
+          disabled={isLoadingMore}
+          style={({ pressed }) => [
+            styles.loadMoreBtn,
+            (pressed || isLoadingMore) && { opacity: 0.6 },
+          ]}
+        >
+          {isLoadingMore ? (
+            <ActivityIndicator size="small" />
+          ) : (
+            <Text style={styles.loadMoreText}>댓글 더보기</Text>
+          )}
+        </Pressable>
+      )}
+    </>
+  );
+}
+
+function CommentRow({ comment }: { comment: CommentItem }) {
+  const isReply = comment.parentCommentId !== null;
+  return (
+    <View style={[styles.commentRow, isReply && styles.commentRowReply]}>
+      <View style={styles.commentHead}>
+        <Avatar name={comment.anonymousId} size={24} />
+        <Text style={styles.commentNick}>{comment.anonymousId}</Text>
+        <Text style={styles.commentTime}>{formatRelative(comment.createdAt)}</Text>
+      </View>
+      <Text style={[styles.commentBody, comment.deleted && styles.commentBodyDeleted]}>
+        {comment.content}
+      </Text>
+      {!comment.deleted && (
+        <View style={styles.commentFoot}>
+          <View style={styles.thumbRow}>
+            <IcThumb size={12} color={C.hint} />
+            <Text style={styles.thumbCount}>{comment.likeCount}</Text>
+          </View>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -299,10 +379,12 @@ const styles = StyleSheet.create({
   sortText: { fontSize: F.size.xs, color: C.hint },
 
   commentRow: { paddingHorizontal: SP[4], paddingVertical: SP[3] },
+  commentRowReply: { paddingLeft: SP[4] + 24, backgroundColor: C.surface2 },
   commentHead: { flexDirection: 'row', alignItems: 'center', gap: SP[2], marginBottom: 4 },
   commentNick: { fontSize: F.size.sm, fontFamily: F.familyMedium, color: C.text },
   commentTime: { fontSize: F.size.xs, color: C.hint },
   commentBody: { paddingLeft: 32, fontSize: F.size.base, color: C.textSub, lineHeight: 21 },
+  commentBodyDeleted: { color: C.hint, fontStyle: 'italic' },
   commentFoot: {
     paddingLeft: 32,
     marginTop: 6,
@@ -312,6 +394,36 @@ const styles = StyleSheet.create({
   thumbRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   thumbCount: { fontSize: F.size.xs, color: C.hint },
   replyLink: { fontSize: F.size.xs, color: C.hint },
+
+  commentsState: {
+    paddingHorizontal: SP[4],
+    paddingVertical: SP[5],
+    alignItems: 'center',
+    gap: 6,
+  },
+  commentsStateTitle: { fontSize: F.size.base, fontFamily: F.familySemiBold, color: C.text, textAlign: 'center' },
+  commentsStateBody: { fontSize: F.size.sm, color: C.textMeta, textAlign: 'center' },
+  retryBtn: {
+    marginTop: SP[2],
+    paddingHorizontal: SP[3],
+    paddingVertical: SP[2],
+    backgroundColor: C.surface,
+    borderRadius: R.md,
+    borderWidth: 1,
+    borderColor: C.divider2,
+  },
+  retryText: { color: C.text, fontSize: F.size.sm, fontFamily: F.familyMedium },
+  loadMoreBtn: {
+    marginHorizontal: SP[4],
+    marginVertical: SP[3],
+    paddingVertical: SP[2],
+    alignItems: 'center',
+    backgroundColor: C.surface,
+    borderRadius: R.md,
+    borderWidth: 1,
+    borderColor: C.divider2,
+  },
+  loadMoreText: { color: C.text, fontSize: F.size.sm, fontFamily: F.familyMedium },
 
   inputBar: {
     marginTop: SP[2],
