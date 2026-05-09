@@ -1,7 +1,84 @@
 # UNIT Backend — Implementation Report
 
-작성일: 2026-05-10 (... → Feed scope/Activity indexed → RTDB Security Rules preflight)
+작성일: 2026-05-10 (... → Feed scope/Activity indexed → RTDB Security Rules preflight → Notifications pagination 정합화)
 대상: UNIT/CAMPUS:ON Backend Spring Boot 3.x + Firebase Realtime Database MVP 스캐폴딩 + 핵심 API skeleton
+
+---
+
+## 0g. Notifications API pagination 정합성 정리 (9번째 사이클)
+
+이 사이클은 신규 도메인 기능 없이 **`GET /v1/notifications`의 query parameter와 페이징 구조를 다른 모든 list endpoint와 통일**하는 정합화 작업이다. 그 동안 notifications만 `size`(기본 50, 최대 100)를 사용하고 메모리 정렬 + cursor 미발급으로 동작했는데, 본 사이클에서 `cursor + limit`(`PaginationLimits` 기본 20/최대 50/0이하 → 20)과 RTDB indexed query(`/notifications/{userId}`의 `createdAt` DESC)로 교체했다.
+
+### 변경한 코드 파일
+
+| 파일 | 변경 |
+|---|---|
+| `notifications/repository/NotificationFirebaseRepository.java` | 기존 `findByUser(userId)` (모든 자식 read 후 `Comparator`로 메모리 정렬) → `queryByUserDesc(userId, cursor, limitPlusOne)` (RTDB indexed query). 반환 타입은 `List<Notification>`로 동일. cursor advance는 다른 indexed list와 동일하게 `RealtimeDatabaseClient.queryByChildDesc("createdAt", cursor, limit+1)`에 위임. |
+| `notifications/service/NotificationService.java` | `listMine(user, int)` → `listMine(user, String cursor, int requestedLimit)`. 반환 `List<NotificationResponse>` → `CursorPageResponse<NotificationResponse>`. `PaginationLimits.clamp` + `CursorCodec.encode`로 다른 list endpoint와 동일한 패턴. cursor 형식 오류는 `IllegalArgumentException` → `BusinessException(INVALID_REQUEST, "cursor 형식이 올바르지 않습니다")`로 변환. |
+| `notifications/controller/NotificationController.java` | `@RequestParam size` → `@RequestParam cursor` + `@RequestParam(defaultValue="20") limit`. 사용하지 않게 된 `Cursor`/`List`/`DEFAULT_LIMIT` 임포트 정리. |
+
+### 정렬·페이지 정책 (다른 list endpoint와 동일)
+
+| 항목 | 값 |
+|---|---|
+| 정렬 | `/notifications/{userId}` 의 `createdAt` DESC (newest-first) |
+| 기본 limit | **20** (`PaginationLimits.DEFAULT`) |
+| 최대 limit | **50** (`PaginationLimits.MAX`) |
+| limit 0/음수 | 기본 20으로 fallback |
+| limit > 50 | 50으로 clamp |
+| cursor | `CursorCodec.encode(createdAt, notificationId)` (base64url `<isoTs>|<id>`). 마지막 페이지에는 `null`. |
+| `pagination.total` | 항상 `null` (다른 list와 동일) |
+| `isRead` 필터 | **미적용** — 모든 알림 반환. unread-only 필터는 후속 사이클에 별도 인덱스 노드 또는 `unreadOnly` query parameter로 추가 예정. |
+| 사라진 파라미터 | `size` (controller 시그니처에서 제거) |
+
+### 추가/갱신한 테스트
+
+`src/test/java/kr/unit/backend/notifications/service/NotificationServiceTest.java`에 6개 신규 케이스 + 4개 기존 케이스 시그니처 갱신, 총 **10 cases**:
+
+| 케이스 | 검증 |
+|---|---|
+| `list_returnsNotificationsSortedNewestFirst` (갱신) | 신규 시그니처 `listMine(user, null, 10)` → `CursorPageResponse`, `n_2 → n_1` (createdAt DESC), `hasMore=false`, `cursor=null` |
+| `getNotifications_usesLimitParameter` (신규) | 2건 fixture + `limit=1` → `items.size=1`, `hasMore=true`, `cursor` 발급 |
+| `getNotifications_clampsLimitToFifty` (신규) | 60건 시드 + `limit=999` → 50건 + `hasMore=true` (`PaginationLimits.MAX` 강제) |
+| `getNotifications_zeroOrNegativeLimitFallsBackToDefault` (신규) | 25건 시드 + `limit=0` 그리고 `limit=-7` 모두 20건 + `hasMore=true` |
+| `getNotifications_usesIndexedCreatedAtQuery` (신규) | `n_z`(오래됨)/`n_a`(최신) 시드 → `n_a, n_z` 순서 (id 사전순이 아닌 createdAt 기반 정렬임을 강제) |
+| `getNotifications_cursorWorks` (신규) | 5건 시드 + `limit=2` 3-page 순회: `[n_04, n_03] → [n_02, n_01] → [n_00]`. 마지막 페이지의 `cursor=null`, `hasMore=false` |
+| `getNotifications_unreadFilterKeepsPolicyIfExists` (신규) | unread + read 혼합 시드 → 둘 다 응답 (현재 isRead 필터 부재 정책을 명시적으로 강제. 향후 unread 필터 추가 시 이 테스트가 깨져 정책 변경을 인지시킴) |
+| `markRead_setsIsReadTrue` (보존) | 단건 읽음 처리 |
+| `markRead_throwsNotFoundForMissingNotification` (보존) | 없는 notificationId → `BusinessException(NOT_FOUND)` |
+| `markAllRead_marksEveryNotificationAsRead` (보존) | 전체 읽음 처리 |
+
+### 동기화한 문서
+
+| 파일 | 변경 |
+|---|---|
+| `frontend-contract/01_FRONTEND_API_CONTRACT.md` §8 | `size`(기본 50/최대 100) 표기를 `cursor + limit`(기본 20/최대 50/0이하 fallback) 표로 교체. `isRead` 필터 미지원 명시. error 코드(`INVALID_REQUEST` for cursor) 추가. |
+| `frontend-contract/06_PAGINATION_CONTRACT.md` §2/§3/§10 | "예외: notifications uses size" 노트 제거 → 모든 list endpoint가 통일됨을 명시. §3 정렬 표의 notifications 항목을 "indexed query" 표기로 갱신. §10 limit 정책 표의 `size` 무시 행을 일반화. |
+| `frontend-contract/09_KNOWN_LIMITATIONS.md` §5/§7.3 | `size`/`limit` 비대칭 한계 행 제거. §7.3 TODO를 `size→limit 통일`(완료)에서 `isRead 필터 도입`으로 교체. §5에 `isRead` 필터 미지원 항목 신설(클라이언트 후처리 권장). |
+| `IMPLEMENTATION_REPORT.md` (본 §0g) | 본 사이클 entry. |
+
+### 변경하지 않은 문서 (이미 정합)
+
+- `database/01_REALTIME_DATABASE_MODEL.md` §12: `notifications/{userId}` 의 `.indexOn: ["createdAt", "isRead"]` 이미 등재.
+- `database/03_SECURITY_RULES.md` §5: 동일 indexOn 등재. `isRead` 인덱스는 향후 unread 필터 시 사용될 reservation으로 유지.
+
+### Reserved/금지 정책 준수 확인
+
+- ✅ 새 도메인 기능 추가 없음 (정합화만)
+- ✅ Course review report 미구현
+- ✅ User settings 미구현
+- ✅ Jury pagination 미구현
+- ✅ AI/OCR/Gemma/Recap 코드 추가 없음
+- ✅ Reserved 응답(`501 FEATURE_RESERVED`) 변경 없음
+- ✅ 기존 테스트 삭제 없음 (4개 보존 + 6개 신규 + 1개 시그니처만 갱신)
+- ✅ Firebase 실제 호출 없음 (FakeRealtimeDatabaseClient로 검증)
+- ✅ `unreadOnly`/`isRead=false` 같은 파라미터 추가 안 함 — 본 사이클 범위 외
+
+### 다음 호출자가 알아야 할 점
+
+- `GET /v1/notifications?size=50` 같은 호출은 이제 `size`가 무시되고 `limit` 기본값 20이 적용된다. 프론트가 갱신되지 않았다면 페이지 크기가 줄어든 것처럼 보일 수 있다 — `01_FRONTEND_API_CONTRACT.md` §8 참고.
+- Cursor 형식 오류는 `400 INVALID_REQUEST`(`message="cursor 형식이 올바르지 않습니다"`)로 응답된다. 다른 list endpoint와 동일.
+- unread 필터가 필요한 화면이 있으면 클라이언트가 `items.filter(n => !n.isRead)`로 후처리. 누적량이 큰 운영 시점에 별도 인덱스 노드 도입 검토.
 
 ---
 

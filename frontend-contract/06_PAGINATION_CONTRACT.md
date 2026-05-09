@@ -37,7 +37,7 @@
 | `cursor` | string | (없음) | — | 첫 페이지는 cursor 없이 호출. 이후 응답의 `pagination.cursor`를 그대로 다음 호출에 전달. |
 | `limit` | int | **20** | **50** | 0 또는 음수 → 기본 20으로 fallback. 50 초과 → 50으로 clamp. |
 
-> **예외**: `GET /v1/notifications`는 역사적으로 `size` 파라미터를 사용한다 (기본 50, 최대 100, 최소 1). 다음 사이클에 통일 예정. 자세한 내용은 [`09_KNOWN_LIMITATIONS.md`](09_KNOWN_LIMITATIONS.md).
+> 모든 list endpoint가 `cursor` + `limit` 파라미터로 통일되어 있다. (이전에 `size`를 사용하던 `GET /v1/notifications`도 이번 사이클에 `limit`으로 정합화됨.)
 
 ## 3. 정렬 방향
 
@@ -50,7 +50,7 @@
 | `GET /v1/users/me/comments` | `createdAt` DESC |
 | `GET /v1/users/me/likes` | `likedAt` DESC |
 | `GET /v1/users/me/scraps` | `scrappedAt` DESC |
-| `GET /v1/notifications` | `createdAt` DESC (백엔드 메모리 정렬, cursor 미지원 — 다음 사이클에 인덱스 쿼리 전환) |
+| `GET /v1/notifications` | `createdAt` DESC (`/notifications/{userId}` indexed query) |
 
 ## 4. 사용 패턴
 
@@ -206,7 +206,7 @@ console.log(decoded);   // "2026-05-09T08:15:00Z|p_abc"
 | `limit=0` | 기본값 20 |
 | `limit=-5` | 기본값 20 |
 | `limit` 누락 | 기본값 20 |
-| `size=...` (`/v1/posts` 등) | **무시** — `size` 파라미터는 더 이상 받지 않는다 (3차 사이클에 정합성 정리). 단 `/v1/notifications`는 `size`만 사용. |
+| `size=...` (모든 list endpoint) | **무시** — `size` 파라미터는 더 이상 받지 않는다. 모든 cursor 기반 list endpoint는 `limit`으로 통일되었다. |
 
 ## 11. 백엔드 검증 (참고)
 

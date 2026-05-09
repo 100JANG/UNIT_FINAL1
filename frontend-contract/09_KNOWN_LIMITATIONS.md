@@ -56,8 +56,7 @@
 | 항목 | 동작 |
 |---|---|
 | `pagination.total` | **항상 `null`**. 비용이 큰 지표라 백엔드가 채우지 않음. UI에서 total에 의존하지 말 것. |
-| `GET /v1/notifications`의 query param | `size` 사용 (다른 list endpoint는 `limit`). 다음 사이클에 통일 예정. |
-| `GET /v1/notifications`의 cursor | 현재 `null`로 응답. hasMore만 동작. 다음 사이클에 RTDB indexed query로 교체 예정. |
+| `GET /v1/notifications`의 `isRead` 필터 | **미지원** — 모든 알림이 createdAt DESC로 응답된다. unread-only 화면이 필요하면 클라이언트가 `items.filter(n => !n.isRead)`로 후처리. 후속 사이클에 별도 인덱스 노드 또는 query 옵션으로 추가 예정. |
 | `pagination.hasMore=true`인데 `items.length < limit` | **정상 동작**. 삭제 글/board 필터로 가시 항목 줄어듦. cursor advance는 query window 마지막 기준. |
 | `studentNumberMasked` | 학번 미등록자는 `null`. 등록자는 `"2020****"` 형식. UI가 null 처리. |
 | `schoolName`/`departmentName` | `/schools/{id}/name`, `/departments/{id}/name` lookup. 메타가 없으면 `null`. UI가 null 처리. |
@@ -95,9 +94,11 @@
 
 `/jury_cases_summoned/{userId}/{caseId}` 인덱스 노드 추가 + write 흐름 갱신 + 룰에 본인-소유 read 조건. 그 이후 `GET /v1/jury/me/cases`가 활성화. 프론트는 활성화 시점까지 빈 상태.
 
-### 7.3 Notifications cursor + limit 통일 (백엔드)
+### 7.3 Notifications `isRead` 필터 (백엔드)
 
-`GET /v1/notifications`를 `RealtimeDatabaseClient.queryByChildDesc("createdAt", ...)`로 교체하고 query parameter를 `limit`로 통일. 프론트는 그 시점에 `size` → `limit`로 갱신.
+현재 `GET /v1/notifications`는 모든 알림을 createdAt DESC로 응답한다 (unread-only 옵션 없음). 운영에서 안 읽은 알림 수가 누적되면 별도 인덱스 노드(`/notifications_unread/{userId}`) 또는 indexed query + 후처리 옵션 도입을 검토. 프론트는 그 시점에 `unreadOnly=true` 등 query parameter 추가에 대응.
+
+(이전 사이클: `size` → `cursor + limit` 통일은 본 사이클에 완료.)
 
 ### 7.4 Hot score / comment count 인덱스 활성화 (백엔드)
 

@@ -707,11 +707,18 @@ Errors: `NOT_FOUND`, `BUSINESS_RULE_VIOLATION`(이미 작성)
 | Status | Implemented |
 | Auth | 필요 |
 
-Query: `size` (기본 50, 1~100).
+Query parameters:
 
-> ⚠️ 다른 list endpoint는 `limit` 파라미터를 사용하지만 이 endpoint는 역사적으로 `size`. 다음 사이클에 통일 예정 ([`09_KNOWN_LIMITATIONS.md`](09_KNOWN_LIMITATIONS.md)).
+| 이름 | 타입 | 기본 | 설명 |
+|---|---|---|---|
+| cursor | string | (없음) | 다음 페이지 cursor (이전 응답의 `pagination.cursor`) |
+| limit | int | 20 | 최대 50, 0 또는 음수 → 기본 20으로 fallback |
 
-Success Response: `CursorPageResponse<NotificationResponse>` (현재 cursor는 항상 null로 응답, hasMore만 동작)
+> 다른 모든 cursor 기반 list endpoint와 동일한 정책 ([`06_PAGINATION_CONTRACT.md`](06_PAGINATION_CONTRACT.md)). 과거 사용되던 `size` 파라미터는 더 이상 받지 않는다.
+
+정렬: `/notifications/{userId}` 노드의 `createdAt` DESC indexed query (newest-first).
+
+Success Response: `CursorPageResponse<NotificationResponse>` (다음 페이지가 없으면 `cursor=null`, `hasMore=false`)
 
 `NotificationResponse`:
 ```json
@@ -726,6 +733,10 @@ Success Response: `CursorPageResponse<NotificationResponse>` (현재 cursor는 �
 ```
 
 `type`: `JURY_SUMMON` \| `POST_COMMENT` \| `POST_LIKE` \| `RECAP_READY` \| `REPORT_RESULT` \| `SYSTEM`.
+
+Notes:
+- 현재 `isRead` 필터(`unreadOnly` 등)는 미지원 — 모든 알림을 createdAt DESC로 그대로 응답한다. 추후 필터가 필요하면 별도 인덱스 노드 또는 후처리 옵션으로 추가 예정 ([`09_KNOWN_LIMITATIONS.md`](09_KNOWN_LIMITATIONS.md)).
+- Errors: `INVALID_REQUEST`(400) — cursor 형식 오류.
 
 ---
 

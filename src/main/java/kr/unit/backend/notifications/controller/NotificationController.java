@@ -2,7 +2,6 @@ package kr.unit.backend.notifications.controller;
 
 import jakarta.validation.Valid;
 import kr.unit.backend.common.api.ApiResponse;
-import kr.unit.backend.common.api.Cursor;
 import kr.unit.backend.common.api.CursorPageResponse;
 import kr.unit.backend.common.security.AuthUser;
 import kr.unit.backend.common.security.AuthenticatedUser;
@@ -19,14 +18,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/notifications")
 public class NotificationController {
-
-    private static final int DEFAULT_LIMIT = 50;
 
     private final NotificationService notificationService;
 
@@ -34,17 +30,22 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
+    /**
+     * 알림 목록 조회.
+     *
+     * <p>Query parameters:
+     * <ul>
+     *   <li>{@code cursor} (선택): 다음 페이지 cursor (이전 응답의 {@code pagination.cursor})</li>
+     *   <li>{@code limit} (선택, 기본 20, 최대 50): 페이지 크기. 0 이하면 기본 20으로 fallback.</li>
+     * </ul>
+     * 과거 사용되던 {@code size} 파라미터는 더 이상 받지 않는다 (다른 list endpoint와 통일됨).
+     */
     @GetMapping
     public ApiResponse<CursorPageResponse<NotificationResponse>> list(
             @AuthUser AuthenticatedUser user,
-            @RequestParam(required = false, defaultValue = "50") int size) {
-        int limit = Math.min(Math.max(size, 1), 100);
-        List<NotificationResponse> items = notificationService.listMine(user, limit + 1);
-        boolean hasMore = items.size() > limit;
-        if (hasMore) {
-            items = items.subList(0, limit);
-        }
-        return ApiResponse.success(CursorPageResponse.of(items, Cursor.of(null, hasMore)));
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.success(notificationService.listMine(user, cursor, limit));
     }
 
     @PatchMapping("/{notificationId}")

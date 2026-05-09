@@ -1,6 +1,7 @@
 package kr.unit.backend.notifications.repository;
 
 import kr.unit.backend.firebase.FirebasePath;
+import kr.unit.backend.firebase.QueryEntry;
 import kr.unit.backend.firebase.RealtimeDatabaseClient;
 import kr.unit.backend.notifications.domain.Notification;
 import kr.unit.backend.notifications.domain.NotificationType;
@@ -8,7 +9,6 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,22 +23,25 @@ public class NotificationFirebaseRepository {
         this.realtimeDatabaseClient = realtimeDatabaseClient;
     }
 
-    public List<Notification> findByUser(String userId, int limit) {
-        Optional<Map> rawOpt = realtimeDatabaseClient.get(FirebasePath.userNotificationsRoot(userId), Map.class);
-        if (rawOpt.isEmpty()) {
-            return List.of();
-        }
-        @SuppressWarnings("unchecked")
-        Map<String, Object> raw = (Map<String, Object>) rawOpt.get();
-        List<Notification> result = new ArrayList<>();
-        for (Map.Entry<String, Object> entry : raw.entrySet()) {
-            if (!(entry.getValue() instanceof Map<?, ?> data)) {
+    /**
+     * /notifications/{userId}를 createdAt DESC 인덱스로 페이지 조회한다. 호출 측은 hasMore 판정을 위해
+     * limitPlusOne을 넘기는 패턴을 쓴다. cursor는 {@link kr.unit.backend.common.api.CursorCodec#encode} 형식.
+     *
+     * 운영 RTDB에서는 /notifications/{userId} 노드에 .indexOn: ["createdAt", "isRead"] 필요.
+     */
+    public List<Notification> queryByUserDesc(String userId, String cursor, int limitPlusOne) {
+        List<QueryEntry<Map>> entries = realtimeDatabaseClient.queryByChildDesc(
+                FirebasePath.userNotificationsRoot(userId), "createdAt", cursor, limitPlusOne, Map.class);
+        List<Notification> result = new ArrayList<>(entries.size());
+        for (QueryEntry<Map> entry : entries) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) entry.value();
+            if (data == null) {
                 continue;
             }
-            result.add(toNotification(userId, entry.getKey(), data));
+            result.add(toNotification(userId, entry.key(), data));
         }
-        result.sort(Comparator.comparing(Notification::createdAt, Comparator.nullsLast(Comparator.reverseOrder())));
-        return result.size() > limit ? result.subList(0, limit) : result;
+        return result;
     }
 
     public Optional<Notification> findOne(String userId, String notificationId) {
