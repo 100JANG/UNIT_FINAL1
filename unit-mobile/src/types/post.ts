@@ -63,6 +63,26 @@ export type PostActionState = {
   isScrapPending: boolean;
 };
 
+/** Request body for POST /v1/posts/{postId}/comments.
+ *  - content: NotBlank, 1~1000 chars
+ *  - parentCommentId: optional. If present, that parent must itself be a root
+ *    (depth ≤ 1 enforced by backend). */
+export type CreateCommentRequest = {
+  content: string;
+  parentCommentId: string | null;
+};
+
+/** Response of POST /v1/posts/{postId}/comments.
+ *  Minimal payload — does NOT include `content`, `anonymousId`, or `likes`,
+ *  so the screen refetches the list after a successful write rather than
+ *  inserting from this response alone. */
+export type CreateCommentResponseDto = {
+  commentId: string;
+  postId: string;
+  parentCommentId: string | null;
+  createdAt: string;
+};
+
 /** UI-shaped comment used by PostDetail's comment list. */
 export type CommentItem = {
   id: string;

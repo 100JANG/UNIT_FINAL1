@@ -25,11 +25,12 @@
 - 화면: `screens/v2/PostDetailScreen.tsx`(목록), `screens/v2/CommentThreadScreen.tsx`(스레드)
 - API:
   - ✅ `GET /v1/posts/{postId}/comments?cursor=&limit=` — **Cycle 4 완료** ([05_COMMENTS_CONNECTION_REPORT.md](05_COMMENTS_CONNECTION_REPORT.md))
-  - ⏳ `POST /v1/posts/{postId}/comments` — 다음 사이클
+  - ✅ `POST /v1/posts/{postId}/comments` — **Cycle 6 완료** ([07_COMMENT_WRITE_CONNECTION_REPORT.md](07_COMMENT_WRITE_CONNECTION_REPORT.md))
   - ⏳ `POST /v1/posts/{postId}/comments/{commentId}/like` — 다음 사이클
   - ⏳ `DELETE /v1/posts/{postId}/comments/{commentId}` — 다음 사이클
 - 주의: 경로는 `/v1/posts/{postId}/comments`이며 `/post_comments` 형태 사용 금지.
-- 이월: `UnitV2ParamList.CommentThread.commentId`를 number → string으로 마이그레이션 필요 (Comment write 사이클과 함께).
+- 이월: `UnitV2ParamList.CommentThread.commentId`를 number → string으로 마이그레이션 필요 (Comment Like/Delete 사이클과 함께). 답글 UI 연결도 같이.
+- 이월: 작성 성공 후 `post.stats.comments` 동기화 (현재는 댓글 리스트만 refetch — Like/Delete cycle에서 `usePostDetail.refetch`도 같이 호출하도록 격상).
 
 ### ~~Cycle D — Like / Scrap~~ → **완료 (Cycle 5)**
 - API:

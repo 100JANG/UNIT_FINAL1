@@ -6,7 +6,12 @@ import { apiClient } from './apiClient';
 import { buildCursorQuery } from './pagination';
 import { mapCommentItem } from './mappers/commentMapper';
 import type { CursorPage } from './apiTypes';
-import type { CommentDto, CommentItem } from '../../types/post';
+import type {
+  CommentDto,
+  CommentItem,
+  CreateCommentRequest,
+  CreateCommentResponseDto,
+} from '../../types/post';
 
 export type GetPostCommentsParams = {
   postId: string;
@@ -41,4 +46,32 @@ export async function getPostComments(params: GetPostCommentsParams): Promise<Co
     cursor: dto.pagination?.cursor ?? null,
     hasMore: dto.pagination?.hasMore ?? false,
   };
+}
+
+export type CreatePostCommentParams = {
+  postId: string;
+  content: string;
+  parentCommentId?: string | null;
+};
+
+/**
+ * POST /v1/posts/{postId}/comments
+ *
+ * Backend validation: content NotBlank 1~1000, parentCommentId optional but
+ * its parent (if any) must itself be a root comment (depth ≤ 1).
+ *
+ * Response is minimal — caller should refetch the list rather than try to
+ * synthesize a full CommentItem from this payload.
+ */
+export async function createPostComment(
+  params: CreatePostCommentParams,
+): Promise<CreateCommentResponseDto> {
+  const body: CreateCommentRequest = {
+    content: params.content,
+    parentCommentId: params.parentCommentId ?? null,
+  };
+  return apiClient.post<CreateCommentResponseDto>(
+    `/posts/${encodeURIComponent(params.postId)}/comments`,
+    body,
+  );
 }

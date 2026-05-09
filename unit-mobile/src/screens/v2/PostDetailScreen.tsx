@@ -21,8 +21,9 @@ import {
 import { C, F, R, SP } from '../../theme/tokens';
 import type { RootStackParamList } from '../../types';
 import { usePostDetail } from '../../hooks/usePostDetail';
-import { usePostComments } from '../../hooks/usePostComments';
+import { usePostComments, type UsePostCommentsResult } from '../../hooks/usePostComments';
 import { usePostActions } from '../../hooks/usePostActions';
+import { useCreateComment } from '../../hooks/useCreateComment';
 import type { CommentItem, PostDetail } from '../../types/post';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -100,7 +101,6 @@ export default function PostDetailV2() {
 }
 
 function PostBody({ post }: { post: PostDetail }) {
-  const [draft, setDraft] = useState('');
   const [shared, setShared] = useState(false);
 
   // myActions is currently absent from GET /v1/posts/{postId}; we pass it in
@@ -112,6 +112,11 @@ function PostBody({ post }: { post: PostDetail }) {
     initialLiked: post.myActions?.liked,
     initialScrapped: post.myActions?.scrapped,
   });
+
+  // Lifted up so the input bar can ask the list to refetch after a successful
+  // create. Comment-write response is minimal — refetch is the safest source
+  // of truth for displaying the new comment.
+  const commentsHook = usePostComments({ postId: post.postId });
 
   const actionError = actions.likeError ?? actions.scrapError;
 
@@ -185,27 +190,15 @@ function PostBody({ post }: { post: PostDetail }) {
         </Pressable>
       </View>
 
-      <CommentsSection postId={post.postId} />
+      <CommentsSection commentsHook={commentsHook} />
 
-      <View style={styles.inputBar}>
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="댓글을 남겨보세요"
-          placeholderTextColor={C.hint}
-          style={styles.input}
-        />
-        <Pressable disabled={!draft.trim()} hitSlop={6} onPress={() => setDraft('')}>
-          <Text style={[styles.submitBtn, !draft.trim() && { color: C.hint }]}>등록</Text>
-        </Pressable>
-      </View>
+      <CommentInputBar postId={post.postId} onCreated={commentsHook.refetch} />
     </>
   );
 }
 
-function CommentsSection({ postId }: { postId: string }) {
-  const { status, comments, error, hasMore, isLoadingMore, loadMore, refetch } =
-    usePostComments({ postId });
+function CommentsSection({ commentsHook }: { commentsHook: UsePostCommentsResult }) {
+  const { status, comments, error, hasMore, isLoadingMore, loadMore, refetch } = commentsHook;
 
   if (status === 'loading' || status === 'idle') {
     return (
@@ -284,6 +277,56 @@ function CommentsSection({ postId }: { postId: string }) {
             <Text style={styles.loadMoreText}>댓글 더보기</Text>
           )}
         </Pressable>
+      )}
+    </>
+  );
+}
+
+function CommentInputBar({ postId, onCreated }: { postId: string; onCreated: () => void }) {
+  const draft = useCreateComment({
+    postId,
+    onSuccess: onCreated,
+  });
+
+  const tooLong = draft.content.length > draft.maxLength;
+  const showCount = draft.content.length > 0;
+
+  return (
+    <>
+      {draft.error && (
+        <View style={styles.submitErrorBox}>
+          <Text style={styles.submitErrorText}>{draft.error.message}</Text>
+          {draft.error.fieldErrors?.map(f => (
+            <Text key={f.field} style={styles.submitFieldError}>
+              · {f.field}: {f.reason}
+            </Text>
+          ))}
+        </View>
+      )}
+      <View style={styles.inputBar}>
+        <TextInput
+          value={draft.content}
+          onChangeText={draft.setContent}
+          placeholder="댓글을 남겨보세요"
+          placeholderTextColor={C.hint}
+          editable={!draft.isSubmitting}
+          multiline
+          style={styles.input}
+        />
+        <Pressable
+          disabled={!draft.canSubmit}
+          hitSlop={6}
+          onPress={draft.submitComment}
+        >
+          <Text style={[styles.submitBtn, !draft.canSubmit && { color: C.hint }]}>
+            {draft.isSubmitting ? '등록 중…' : '등록'}
+          </Text>
+        </Pressable>
+      </View>
+      {showCount && (
+        <Text style={[styles.charCount, tooLong && { color: C.warn }]}>
+          {draft.content.length} / {draft.maxLength}
+        </Text>
       )}
     </>
   );
@@ -478,6 +521,31 @@ const styles = StyleSheet.create({
     color: C.inkNavy,
     fontFamily: F.familySemiBold,
     paddingHorizontal: SP[2],
+  },
+  submitErrorBox: {
+    paddingHorizontal: SP[4],
+    paddingVertical: SP[2],
+    backgroundColor: '#FFF6F6',
+    borderTopWidth: 1,
+    borderTopColor: '#F5C6C6',
+  },
+  submitErrorText: {
+    fontSize: F.size.sm,
+    color: C.warn,
+    fontFamily: F.familyMedium,
+  },
+  submitFieldError: {
+    fontSize: F.size.xs,
+    color: C.warn,
+    marginTop: 2,
+  },
+  charCount: {
+    paddingHorizontal: SP[4],
+    paddingBottom: SP[2],
+    fontSize: F.size.xs,
+    color: C.hint,
+    textAlign: 'right',
+    backgroundColor: C.white,
   },
 
   center: {
