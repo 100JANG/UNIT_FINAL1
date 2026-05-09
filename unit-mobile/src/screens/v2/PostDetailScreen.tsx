@@ -24,6 +24,7 @@ import { usePostDetail } from '../../hooks/usePostDetail';
 import { usePostComments, type UsePostCommentsResult } from '../../hooks/usePostComments';
 import { usePostActions } from '../../hooks/usePostActions';
 import { useCreateComment } from '../../hooks/useCreateComment';
+import { useCommentActions, type UseCommentActionsResult } from '../../hooks/useCommentActions';
 import type { CommentItem, PostDetail } from '../../types/post';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -118,6 +119,14 @@ function PostBody({ post }: { post: PostDetail }) {
   // of truth for displaying the new comment.
   const commentsHook = usePostComments({ postId: post.postId });
 
+  // Per-comment like/delete actions. Optimistic state is written directly into
+  // the comments list via patchCommentLocally so there's a single source of
+  // truth for what's rendered.
+  const commentActions = useCommentActions({
+    postId: post.postId,
+    patchCommentLocally: commentsHook.patchCommentLocally,
+  });
+
   const actionError = actions.likeError ?? actions.scrapError;
 
   const onShare = () => {
@@ -190,14 +199,20 @@ function PostBody({ post }: { post: PostDetail }) {
         </Pressable>
       </View>
 
-      <CommentsSection commentsHook={commentsHook} />
+      <CommentsSection commentsHook={commentsHook} commentActions={commentActions} />
 
       <CommentInputBar postId={post.postId} onCreated={commentsHook.refetch} />
     </>
   );
 }
 
-function CommentsSection({ commentsHook }: { commentsHook: UsePostCommentsResult }) {
+function CommentsSection({
+  commentsHook,
+  commentActions,
+}: {
+  commentsHook: UsePostCommentsResult;
+  commentActions: UseCommentActionsResult;
+}) {
   const { status, comments, error, hasMore, isLoadingMore, loadMore, refetch } = commentsHook;
 
   if (status === 'loading' || status === 'idle') {
@@ -260,7 +275,7 @@ function CommentsSection({ commentsHook }: { commentsHook: UsePostCommentsResult
   return (
     <>
       {comments.map(c => (
-        <CommentRow key={c.id} comment={c} />
+        <CommentRow key={c.id} comment={c} commentActions={commentActions} />
       ))}
       {hasMore && (
         <Pressable
@@ -332,8 +347,17 @@ function CommentInputBar({ postId, onCreated }: { postId: string; onCreated: () 
   );
 }
 
-function CommentRow({ comment }: { comment: CommentItem }) {
+function CommentRow({
+  comment,
+  commentActions,
+}: {
+  comment: CommentItem;
+  commentActions: UseCommentActionsResult;
+}) {
   const isReply = comment.parentCommentId !== null;
+  const liked = comment.likedByMe ?? false;
+  const pending = commentActions.isLikePending(comment.id);
+  const error = commentActions.likeError(comment.id);
   return (
     <View style={[styles.commentRow, isReply && styles.commentRowReply]}>
       <View style={styles.commentHead}>
@@ -346,10 +370,27 @@ function CommentRow({ comment }: { comment: CommentItem }) {
       </Text>
       {!comment.deleted && (
         <View style={styles.commentFoot}>
-          <View style={styles.thumbRow}>
-            <IcThumb size={12} color={C.hint} />
-            <Text style={styles.thumbCount}>{comment.likeCount}</Text>
-          </View>
+          <Pressable
+            onPress={() => commentActions.toggleCommentLike(comment)}
+            disabled={pending}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.thumbRow,
+              pending && { opacity: 0.5 },
+              pressed && !pending && { opacity: 0.7 },
+            ]}
+          >
+            <IcThumb size={12} color={liked ? C.inkNavy : C.hint} />
+            <Text
+              style={[
+                styles.thumbCount,
+                liked && { color: C.inkNavy, fontFamily: F.familyMedium },
+              ]}
+            >
+              {comment.likeCount}
+            </Text>
+          </Pressable>
+          {error && <Text style={styles.commentLikeError}>{error.message}</Text>}
         </View>
       )}
     </View>
@@ -467,6 +508,7 @@ const styles = StyleSheet.create({
   thumbRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   thumbCount: { fontSize: F.size.xs, color: C.hint },
   replyLink: { fontSize: F.size.xs, color: C.hint },
+  commentLikeError: { fontSize: F.size.xs, color: C.warn, marginLeft: SP[2] },
 
   commentsState: {
     paddingHorizontal: SP[4],

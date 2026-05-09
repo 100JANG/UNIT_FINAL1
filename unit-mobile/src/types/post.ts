@@ -63,6 +63,21 @@ export type PostActionState = {
   isScrapPending: boolean;
 };
 
+/** Response of POST /v1/posts/{postId}/comments/{commentId}/like (toggle).
+ *  NOTE: contract uses `totalLikes` here (different from post-like which uses `likes`). */
+export type CommentLikeResponseDto = {
+  commentId: string;
+  liked: boolean;
+  totalLikes: number;
+};
+
+/** Response of DELETE /v1/posts/{postId}/comments/{commentId}.
+ *  Soft delete — backend rewrites content to "삭제된 댓글입니다." server-side
+ *  and sets deleted=true on subsequent GETs. Idempotent on re-call. */
+export type CommentDeleteResponseDto = {
+  commentId: string;
+};
+
 /** Request body for POST /v1/posts/{postId}/comments.
  *  - content: NotBlank, 1~1000 chars
  *  - parentCommentId: optional. If present, that parent must itself be a root
@@ -93,8 +108,12 @@ export type CommentItem = {
   createdAt: string;
   likeCount: number;
   deleted: boolean;
-  /** Reserved for the future like/delete cycle. Backend GET does not return
-   *  ownership info, so this is always undefined for now. */
+  /** Whether the viewer has liked this comment. Backend GET does NOT return
+   *  this — initially undefined; populated only after the viewer toggles via
+   *  POST /comments/{commentId}/like (the toggle response is authoritative). */
+  likedByMe?: boolean;
+  /** Reserved. Backend GET does not return ownership info, so this is always
+   *  undefined for now (delete UI suppressed in cycle 3). */
   isMyComment?: boolean;
 };
 

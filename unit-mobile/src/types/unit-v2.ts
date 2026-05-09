@@ -60,7 +60,7 @@ export type UnitV2ParamList = {
   FriendRequests: undefined;
   Report: { targetType: 'post' | 'comment' | 'user'; targetId: string };
   BlockList: undefined;
-  CommentThread: { commentId: number };
+  CommentThread: { commentId: string };
 
   // Settings (3)
   Settings: undefined;

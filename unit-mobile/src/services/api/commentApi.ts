@@ -7,8 +7,10 @@ import { buildCursorQuery } from './pagination';
 import { mapCommentItem } from './mappers/commentMapper';
 import type { CursorPage } from './apiTypes';
 import type {
+  CommentDeleteResponseDto,
   CommentDto,
   CommentItem,
+  CommentLikeResponseDto,
   CreateCommentRequest,
   CreateCommentResponseDto,
 } from '../../types/post';
@@ -73,5 +75,26 @@ export async function createPostComment(
   return apiClient.post<CreateCommentResponseDto>(
     `/posts/${encodeURIComponent(params.postId)}/comments`,
     body,
+  );
+}
+
+/** POST /v1/posts/{postId}/comments/{commentId}/like — toggle. Body unused. */
+export async function likeComment(
+  postId: string,
+  commentId: string,
+): Promise<CommentLikeResponseDto> {
+  return apiClient.post<CommentLikeResponseDto>(
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/like`,
+  );
+}
+
+/** DELETE /v1/posts/{postId}/comments/{commentId} — soft delete (idempotent).
+ *  Backend rewrites content + sets deleted=true on subsequent GETs. */
+export async function deleteComment(
+  postId: string,
+  commentId: string,
+): Promise<CommentDeleteResponseDto> {
+  return apiClient.delete<CommentDeleteResponseDto>(
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
   );
 }

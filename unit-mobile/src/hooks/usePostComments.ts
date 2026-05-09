@@ -30,6 +30,9 @@ export type UsePostCommentsResult = {
   isLoadingMore: boolean;
   loadMore: () => void;
   refetch: () => void;
+  /** Apply a partial patch to a single comment in place. Used by useCommentActions
+   *  for optimistic toggle / rollback / server confirmation. No network. */
+  patchCommentLocally: (commentId: string, patch: Partial<CommentItem>) => void;
 };
 
 export function usePostComments({ postId, limit }: UsePostCommentsArgs): UsePostCommentsResult {
@@ -101,6 +104,15 @@ export function usePostComments({ postId, limit }: UsePostCommentsArgs): UsePost
       });
   }, [postId, limit, cursor, hasMore, isLoadingMore, status]);
 
+  const patchCommentLocally = useCallback(
+    (commentId: string, patch: Partial<CommentItem>) => {
+      setComments(prev =>
+        prev.map(c => (c.id === commentId ? { ...c, ...patch } : c)),
+      );
+    },
+    [],
+  );
+
   return {
     status,
     comments,
@@ -109,6 +121,7 @@ export function usePostComments({ postId, limit }: UsePostCommentsArgs): UsePost
     isLoadingMore,
     loadMore,
     refetch: loadFirst,
+    patchCommentLocally,
   };
 }
 
