@@ -48,6 +48,9 @@ import CourseDetailV2 from '../screens/v2/CourseDetailScreen';
 import CourseReviewV2 from '../screens/v2/CourseReviewScreen';
 import ChatListV2 from '../screens/v2/ChatListScreen';
 import ChatRoomV2 from '../screens/v2/ChatRoomScreen';
+import FeedV2 from '../screens/v2/FeedScreen';
+import PostDetailV2 from '../screens/v2/PostDetailScreen';
+import WriteV2 from '../screens/v2/WriteScreen';
 import type { UnitV2ParamList } from '../types/unit-v2';
 
 const Stack = createNativeStackNavigator<UnitV2ParamList>();
@@ -154,6 +157,9 @@ const REAL_SCREENS: Partial<
   CourseReview: CourseReviewV2,
   ChatList: ChatListV2,
   ChatRoom: ChatRoomV2,
+  Feed: FeedV2,
+  PostDetail: PostDetailV2,
+  Write: WriteV2,
   MannerGrade: MannerGradeV2,
   MannerLadder: MannerLadderV2,
 };

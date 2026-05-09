@@ -3,8 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 
 import TabNavigator from './TabNavigator';
-import WriteScreen from '../screens/WriteScreen';
-import PostDetailScreen from '../screens/PostDetailScreen';
+import WriteScreen from '../screens/wrappers/WriteWrapper';
+import PostDetailScreen from '../screens/wrappers/PostDetailWrapper';
 import CoursesScreen from '../screens/wrappers/CoursesWrapper';
 import CourseDetailScreen from '../screens/wrappers/CourseDetailWrapper';
 import CourseReviewScreen from '../screens/wrappers/CourseReviewWrapper';

@@ -12,7 +12,7 @@ import {
   IconPencil,
 } from '../components/shared/Icons';
 
-import FeedScreen from '../screens/FeedScreen';
+import FeedScreen from '../screens/wrappers/FeedWrapper';
 import CampusHubScreen from '../screens/CampusHubScreen';
 import ChatListScreen from '../screens/wrappers/ChatListWrapper';
 import ProfileScreen from '../screens/wrappers/ProfileWrapper';
