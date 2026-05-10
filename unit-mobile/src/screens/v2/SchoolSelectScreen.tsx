@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import {
   AppBar,
   Hairline,
@@ -11,6 +11,7 @@ import {
 import { C, F, R, SP } from '../../theme/tokens';
 import type { UnitV2ParamList } from '../../types/unit-v2';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import DemoSchoolEntry from '../../components/dev/DemoSchoolEntry';
 
 type Nav = NativeStackNavigationProp<UnitV2ParamList>;
 
@@ -37,10 +38,26 @@ export default function SchoolSelectV2() {
     );
   }, [q]);
 
+  // DEMO_MODE_START
+  // 시연용 코드: 운영 환경에서는 비활성화되어야 한다.
+  // demo 진입 성공 시 학교선택 → 로그인 화면으로 가지 않고 곧장 Tabs(Feed)로 reset 한다.
+  // 부모 navigator(Root stack)에 reset 액션을 dispatch 한다.
+  const onDemoEntered = () => {
+    const root = navigation.getParent();
+    if (root) {
+      root.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Tabs' }] }));
+    }
+  };
+  // DEMO_MODE_END
+
   return (
     <Screen
       appBar={<AppBar title="학교 선택" />}
     >
+      {/* DEMO_MODE_START — 운영 모드에선 컴포넌트가 null 을 반환해 자동으로 숨겨진다. */}
+      <DemoSchoolEntry onEntered={onDemoEntered} />
+      {/* DEMO_MODE_END */}
+
       <View style={styles.searchWrap}>
         <View style={styles.searchBox}>
           <IcSearch size={18} color={C.hint} />
