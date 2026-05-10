@@ -52,10 +52,18 @@
 - 주의: `REVIEW_QUOTA_REQUIRED` (422) → 토스트가 아니라 `CourseReview` 화면으로 라우팅 (Cycle 4에서 정착).
 - ✅ Course route 타입 number → string 마이그레이션 완료 (Cycle 4).
 
-### Cycle F — Profile / Users
-- 화면: `ProfileScreen`, `OtherProfileScreen`, `MyPostsScreen`, `MyCommentsScreen`, `ScrapsScreen`
-- API: `GET /v1/users/me`, `GET /v1/users/{userId}`, `GET /v1/users/me/posts`, `GET /v1/users/me/comments`, `GET /v1/users/me/scraps`
-- `studentNumberMasked`, `enrollmentStatus: RESERVED` 처리.
+### ~~Cycle F — Profile / Users~~ → **완료 (Cycle 6)**
+- 화면: `ProfileScreen` ✅, `MyPostsScreen` ✅, `MyCommentsScreen` ✅, `ScrapsScreen` ✅
+- API:
+  - ✅ `GET /v1/users/me`
+  - ✅ `GET /v1/users/me/stats`
+  - ✅ `GET /v1/users/me/posts`
+  - ✅ `GET /v1/users/me/comments`
+  - ✅ `GET /v1/users/me/likes` (hook만 준비, 전용 화면 없음)
+  - ✅ `GET /v1/users/me/scraps`
+- ✅ `studentNumberMasked`, `enrollmentStatus: RESERVED` 안전 처리
+- 이월: `OtherProfileScreen` 연결, MyLikesScreen 신규 화면, profile settings 수정 endpoint
+- 상세: [11_PROFILE_ACTIVITY_REPORT.md](11_PROFILE_ACTIVITY_REPORT.md)
 
 ### Cycle G — Notifications
 - 화면: `NotificationsScreen`

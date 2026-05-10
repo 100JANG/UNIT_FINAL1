@@ -1,26 +1,32 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import {
   AppBar,
   IconButton,
   Pill,
   Screen,
-  Tabs,
   IcBack,
 } from '../../components/ui';
 import { C, F, R, SP } from '../../theme/tokens';
-import { useState } from 'react';
+import type { RootStackParamList } from '../../types';
+import { useMyPosts } from '../../hooks/useMyActivity';
 
-const POSTS = [
-  { board: '자유', title: '기숙사 식단 이번 학기부터 바뀐 거 어때요?', time: '12분 전', up: 24, cmt: 18, scrap: 4 },
-  { board: '학사', title: '수강신청 서버 또 터질까요', time: '32분 전', up: 56, cmt: 41, scrap: 12 },
-  { board: '시험', title: '중간고사 기간 도서관 자리 어디가 제일 낫나요', time: '1시간 전', up: 12, cmt: 9, scrap: 2 },
-  { board: '자취', title: '자취방 계약할 때 조심할 점 공유합니다', time: '2시간 전', up: 89, cmt: 23, scrap: 47 },
-];
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+function formatRelative(iso: string): string {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (Number.isNaN(diff)) return '';
+  if (diff < 60) return '방금 전';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  return `${Math.floor(diff / 86400)}일 전`;
+}
 
 export default function MyPostsV2() {
-  const navigation = useNavigation();
-  const [sort, setSort] = useState<'recent' | 'popular'>('recent');
+  const navigation = useNavigation<Nav>();
+  const { status, items, error, hasMore, isLoadingMore, loadMore, refetch } = useMyPosts();
 
   return (
     <Screen
@@ -31,76 +37,98 @@ export default function MyPostsV2() {
             <View style={styles.leading}>
               <IconButton icon={<IcBack />} onPress={() => navigation.goBack()} />
               <Text style={styles.title}>내가 쓴 글</Text>
-              <Pill tone="mist">{POSTS.length}</Pill>
+              {status === 'success' && <Pill tone="mist">{items.length}{hasMore ? '+' : ''}</Pill>}
             </View>
           }
         />
       }
     >
-      <Tabs
-        items={[
-          { id: 'recent', label: '최신순' },
-          { id: 'popular', label: '인기순' },
-        ]}
-        active={sort}
-        onChange={(id) => setSort(id as 'recent' | 'popular')}
-      />
-
-      <View style={{ padding: SP[3] }}>
-        {POSTS.map((p, i) => (
-          <View key={i}>
-            <Pressable
-              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-            >
-              <View style={styles.cardHead}>
-                <Pill>{p.board}</Pill>
-                <Text style={styles.time}>{p.time}</Text>
-              </View>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {p.title}
-              </Text>
-              <View style={styles.metaRow}>
-                <Text style={[styles.meta, { color: C.inkNavy, fontFamily: F.familySemiBold }]}>
-                  추천 {p.up}
-                </Text>
-                <Text style={styles.meta}>댓글 {p.cmt}</Text>
-                <Text style={styles.meta}>스크랩 {p.scrap}</Text>
-              </View>
+      <ScrollView contentContainerStyle={{ padding: SP[3] }}>
+        {status === 'loading' || status === 'idle' ? (
+          <View style={styles.center}><ActivityIndicator /></View>
+        ) : status === 'auth-required' ? (
+          <CenteredText title="로그인이 필요합니다" body="피드 상단의 DEV 패널에서 sessionToken을 입력해주세요." />
+        ) : status === 'reserved' ? (
+          <CenteredText title="준비 중인 기능입니다" body={error?.message ?? ''} />
+        ) : status === 'error' ? (
+          <View style={styles.center}>
+            <Text style={styles.stateTitle}>글을 불러오지 못했습니다</Text>
+            <Text style={styles.stateBody}>{error?.message ?? ''}</Text>
+            <Pressable onPress={refetch} style={styles.retryBtn}>
+              <Text style={styles.retryText}>다시 시도</Text>
             </Pressable>
-            {i < POSTS.length - 1 && <View style={{ height: 10 }} />}
           </View>
-        ))}
-      </View>
+        ) : status === 'empty' ? (
+          <CenteredText title="작성한 글이 없어요" body="새로운 글을 작성해보세요." />
+        ) : (
+          <>
+            {items.map((p, i) => (
+              <View key={p.postId}>
+                <Pressable
+                  onPress={() => navigation.navigate('PostDetail', { postId: p.postId })}
+                  style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                >
+                  <View style={styles.cardHead}>
+                    <Pill>{p.boardId}</Pill>
+                    <Text style={styles.time}>{formatRelative(p.createdAt)}</Text>
+                  </View>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{p.title}</Text>
+                  <Text style={styles.preview} numberOfLines={2}>{p.preview}</Text>
+                  <View style={styles.metaRow}>
+                    <Text style={[styles.meta, { color: C.inkNavy, fontFamily: F.familySemiBold }]}>
+                      추천 {p.likeCount}
+                    </Text>
+                    <Text style={styles.meta}>댓글 {p.commentCount}</Text>
+                  </View>
+                </Pressable>
+                {i < items.length - 1 && <View style={{ height: 10 }} />}
+              </View>
+            ))}
+            {hasMore && (
+              <Pressable
+                onPress={loadMore}
+                disabled={isLoadingMore}
+                style={({ pressed }) => [
+                  styles.loadMoreBtn,
+                  (pressed || isLoadingMore) && { opacity: 0.6 },
+                ]}
+              >
+                {isLoadingMore ? <ActivityIndicator size="small" /> : <Text style={styles.loadMoreText}>더보기</Text>}
+              </Pressable>
+            )}
+          </>
+        )}
+      </ScrollView>
     </Screen>
+  );
+}
+
+function CenteredText({ title, body }: { title: string; body: string }) {
+  return (
+    <View style={styles.center}>
+      <Text style={styles.stateTitle}>{title}</Text>
+      <Text style={styles.stateBody}>{body}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   leading: { flexDirection: 'row', alignItems: 'center', gap: SP[2] },
-  title: {
-    fontSize: F.size.lg,
-    fontFamily: F.familySemiBold,
-    color: C.text,
-    marginLeft: SP[1],
-  },
-  card: {
-    backgroundColor: C.white,
-    borderRadius: R.lg,
-    padding: SP[4],
-    borderWidth: 1,
-    borderColor: C.divider2,
-  },
+  title: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, marginLeft: SP[1] },
+  card: { backgroundColor: C.white, borderRadius: R.lg, padding: SP[4], borderWidth: 1, borderColor: C.divider2 },
   cardPressed: { backgroundColor: C.surface },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: SP[2], marginBottom: SP[2] },
   time: { fontSize: F.size.sm, color: C.hint },
-  cardTitle: {
-    fontSize: F.size.xl,
-    fontFamily: F.familySemiBold,
-    color: C.text,
-    letterSpacing: -0.3,
-    lineHeight: 22,
-    marginBottom: SP[1],
-  },
+  cardTitle: { fontSize: F.size.xl, fontFamily: F.familySemiBold, color: C.text, letterSpacing: -0.3, lineHeight: 22, marginBottom: SP[1] },
+  preview: { fontSize: F.size.sm, color: C.textMeta, lineHeight: 18 },
   metaRow: { flexDirection: 'row', gap: SP[4], marginTop: SP[2] },
   meta: { fontSize: F.size.sm, color: C.textMeta },
+
+  center: { padding: SP[6], alignItems: 'center', gap: 6 },
+  stateTitle: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, textAlign: 'center' },
+  stateBody: { fontSize: F.size.sm, color: C.textMeta, textAlign: 'center' },
+  retryBtn: { marginTop: SP[3], paddingHorizontal: SP[4], paddingVertical: SP[2], backgroundColor: C.inkNavy, borderRadius: R.md },
+  retryText: { color: C.white, fontSize: F.size.sm, fontFamily: F.familySemiBold },
+  loadMoreBtn: { marginVertical: SP[3], paddingVertical: SP[2], alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, borderWidth: 1, borderColor: C.divider2 },
+  loadMoreText: { color: C.text, fontSize: F.size.sm, fontFamily: F.familyMedium },
 });

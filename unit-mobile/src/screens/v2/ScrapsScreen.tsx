@@ -1,162 +1,133 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import {
   AppBar,
-  Hairline,
   IconButton,
   Pill,
   Screen,
-  Tabs,
   IcBack,
 } from '../../components/ui';
-import { C, F, SP } from '../../theme/tokens';
+import { C, F, R, SP } from '../../theme/tokens';
+import type { RootStackParamList } from '../../types';
+import { useMyScraps } from '../../hooks/useMyActivity';
 
-const POSTS = [
-  { board: '학사', title: '계절학기 신청 일정 정리', time: '5시간 전' },
-  { board: '자취', title: '자취방 계약할 때 조심할 점 공유합니다', time: '2시간 전' },
-];
-const COURSES = [
-  { name: '데이터분석개론', prof: '김지연', rec: 78 },
-  { name: '한국근현대사',   prof: '정민서', rec: 89 },
-];
-const CONTESTS = [
-  { tag: '디자인', title: '청년 UX 디자인 공모전', dday: 'D-12' },
-  { tag: '개발',   title: 'SW 알고리즘 챌린지',   dday: 'D-5' },
-];
-const JOBS = [
-  { tag: '캠퍼스내', title: '주말 바리스타', wage: '시급 12,000원' },
-];
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+function formatRelative(iso: string): string {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (Number.isNaN(diff)) return '';
+  if (diff < 60) return '방금 전';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  return `${Math.floor(diff / 86400)}일 전`;
+}
 
 export default function ScrapsV2() {
-  const navigation = useNavigation();
-  const [tab, setTab] = useState('post');
+  const navigation = useNavigation<Nav>();
+  const { status, items, error, hasMore, isLoadingMore, loadMore, refetch } = useMyScraps();
 
   return (
     <Screen
+      bg={C.surface}
       appBar={
         <AppBar
           leading={
             <View style={styles.leading}>
               <IconButton icon={<IcBack />} onPress={() => navigation.goBack()} />
               <Text style={styles.title}>스크랩</Text>
+              {status === 'success' && <Pill tone="mist">{items.length}{hasMore ? '+' : ''}</Pill>}
             </View>
-          }
-          trailing={
-            <Pressable hitSlop={6}>
-              <Text style={styles.editBtn}>편집</Text>
-            </Pressable>
           }
         />
       }
     >
-      <Tabs
-        items={[
-          { id: 'post', label: '게시글', count: POSTS.length },
-          { id: 'course', label: '강의', count: COURSES.length },
-          { id: 'contest', label: '공모전', count: CONTESTS.length },
-          { id: 'job', label: '알바', count: JOBS.length },
-        ]}
-        active={tab}
-        onChange={setTab}
-      />
-
-      {tab === 'post' &&
-        POSTS.map((p, i) => (
-          <View key={i}>
-            <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-              <View style={styles.rowHead}>
-                <Pill>{p.board}</Pill>
-                <Text style={styles.metaText}>{p.time}</Text>
+      <ScrollView contentContainerStyle={{ padding: SP[3] }}>
+        {status === 'loading' || status === 'idle' ? (
+          <View style={styles.center}><ActivityIndicator /></View>
+        ) : status === 'auth-required' ? (
+          <CenteredText title="로그인이 필요합니다" body="피드 상단의 DEV 패널에서 sessionToken을 입력해주세요." />
+        ) : status === 'reserved' ? (
+          <CenteredText title="준비 중인 기능입니다" body={error?.message ?? ''} />
+        ) : status === 'error' ? (
+          <View style={styles.center}>
+            <Text style={styles.stateTitle}>스크랩을 불러오지 못했습니다</Text>
+            <Text style={styles.stateBody}>{error?.message ?? ''}</Text>
+            <Pressable onPress={refetch} style={styles.retryBtn}>
+              <Text style={styles.retryText}>다시 시도</Text>
+            </Pressable>
+          </View>
+        ) : status === 'empty' ? (
+          <CenteredText title="스크랩한 글이 없어요" body="마음에 드는 글을 스크랩해보세요." />
+        ) : (
+          <>
+            {items.map((s, i) => (
+              <View key={s.postId}>
+                <Pressable
+                  onPress={() => navigation.navigate('PostDetail', { postId: s.postId })}
+                  style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                >
+                  <View style={styles.cardHead}>
+                    <Pill>{s.boardName ?? s.boardId}</Pill>
+                    <Text style={styles.time}>{formatRelative(s.scrappedAt)}</Text>
+                  </View>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{s.title}</Text>
+                  <Text style={styles.preview} numberOfLines={2}>{s.preview}</Text>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.meta}>👍 {s.stats.likes}</Text>
+                    <Text style={styles.meta}>💬 {s.stats.comments}</Text>
+                    <Text style={styles.meta}>🔖 {s.stats.scraps}</Text>
+                  </View>
+                </Pressable>
+                {i < items.length - 1 && <View style={{ height: 10 }} />}
               </View>
-              <Text style={styles.rowTitle} numberOfLines={2}>
-                {p.title}
-              </Text>
-            </Pressable>
-            {i < POSTS.length - 1 && <Hairline mx={SP[4]} />}
-          </View>
-        ))}
-
-      {tab === 'course' &&
-        COURSES.map((c, i) => (
-          <View key={i}>
-            <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-              <Text style={styles.rowTitle}>{c.name}</Text>
-              <Text style={styles.metaText}>
-                {c.prof} ·{' '}
-                <Text style={{ color: C.inkNavy, fontFamily: F.familySemiBold }}>
-                  {c.rec}%
-                </Text>{' '}
-                추천
-              </Text>
-            </Pressable>
-            {i < COURSES.length - 1 && <Hairline mx={SP[4]} />}
-          </View>
-        ))}
-
-      {tab === 'contest' &&
-        CONTESTS.map((c, i) => (
-          <View key={i}>
-            <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-              <View style={styles.rowHead}>
-                <Pill tone="mist">{c.tag}</Pill>
-                <Text style={[styles.metaText, { color: C.danger, fontFamily: F.familySemiBold }]}>
-                  {c.dday}
-                </Text>
-              </View>
-              <Text style={styles.rowTitle}>{c.title}</Text>
-            </Pressable>
-            {i < CONTESTS.length - 1 && <Hairline mx={SP[4]} />}
-          </View>
-        ))}
-
-      {tab === 'job' &&
-        JOBS.map((j, i) => (
-          <View key={i}>
-            <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-              <View style={styles.rowHead}>
-                <Pill tone="navy">{j.tag}</Pill>
-              </View>
-              <Text style={styles.rowTitle}>{j.title}</Text>
-              <Text style={[styles.metaText, { color: C.inkNavy, fontFamily: F.familySemiBold }]}>
-                {j.wage}
-              </Text>
-            </Pressable>
-            {i < JOBS.length - 1 && <Hairline mx={SP[4]} />}
-          </View>
-        ))}
+            ))}
+            {hasMore && (
+              <Pressable
+                onPress={loadMore}
+                disabled={isLoadingMore}
+                style={({ pressed }) => [
+                  styles.loadMoreBtn,
+                  (pressed || isLoadingMore) && { opacity: 0.6 },
+                ]}
+              >
+                {isLoadingMore ? <ActivityIndicator size="small" /> : <Text style={styles.loadMoreText}>더보기</Text>}
+              </Pressable>
+            )}
+          </>
+        )}
+      </ScrollView>
     </Screen>
   );
 }
 
+function CenteredText({ title, body }: { title: string; body: string }) {
+  return (
+    <View style={styles.center}>
+      <Text style={styles.stateTitle}>{title}</Text>
+      {body ? <Text style={styles.stateBody}>{body}</Text> : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  leading: { flexDirection: 'row', alignItems: 'center' },
-  title: {
-    fontSize: F.size.lg,
-    fontFamily: F.familySemiBold,
-    color: C.text,
-    marginLeft: SP[1],
-  },
-  editBtn: {
-    fontSize: F.size.sm,
-    color: C.inkNavy,
-    fontFamily: F.familyMedium,
-    paddingHorizontal: SP[2],
-    paddingVertical: SP[1],
-  },
-  row: {
-    paddingHorizontal: SP[4],
-    paddingVertical: SP[3],
-    gap: SP[1],
-    backgroundColor: C.white,
-  },
-  pressed: { backgroundColor: C.surface },
-  rowHead: { flexDirection: 'row', gap: SP[2], alignItems: 'center' },
-  rowTitle: {
-    fontSize: F.size.md,
-    color: C.text,
-    fontFamily: F.familyMedium,
-    lineHeight: 19,
-  },
-  metaText: { fontSize: F.size.sm, color: C.textMeta },
+  leading: { flexDirection: 'row', alignItems: 'center', gap: SP[2] },
+  title: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, marginLeft: SP[1] },
+  card: { backgroundColor: C.white, borderRadius: R.lg, padding: SP[4], borderWidth: 1, borderColor: C.divider2 },
+  cardPressed: { backgroundColor: C.surface },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: SP[2], marginBottom: SP[2] },
+  time: { fontSize: F.size.sm, color: C.hint },
+  cardTitle: { fontSize: F.size.xl, fontFamily: F.familySemiBold, color: C.text, letterSpacing: -0.3, lineHeight: 22, marginBottom: SP[1] },
+  preview: { fontSize: F.size.sm, color: C.textMeta, lineHeight: 18 },
+  metaRow: { flexDirection: 'row', gap: SP[4], marginTop: SP[2] },
+  meta: { fontSize: F.size.sm, color: C.textMeta },
+
+  center: { padding: SP[6], alignItems: 'center', gap: 6 },
+  stateTitle: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, textAlign: 'center' },
+  stateBody: { fontSize: F.size.sm, color: C.textMeta, textAlign: 'center' },
+  retryBtn: { marginTop: SP[3], paddingHorizontal: SP[4], paddingVertical: SP[2], backgroundColor: C.inkNavy, borderRadius: R.md },
+  retryText: { color: C.white, fontSize: F.size.sm, fontFamily: F.familySemiBold },
+  loadMoreBtn: { marginVertical: SP[3], paddingVertical: SP[2], alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, borderWidth: 1, borderColor: C.divider2 },
+  loadMoreText: { color: C.text, fontSize: F.size.sm, fontFamily: F.familyMedium },
 });
