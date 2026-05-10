@@ -1,0 +1,29 @@
+# DEMO_MODE_START
+# 시연 전용 프로파일. 운영 환경에서는 절대 활성화하지 말 것.
+#
+# 활성화: spring.profiles.active=demo  (또는 SPRING_PROFILES_ACTIVE=demo)
+#
+# 정책:
+#   - app.demo.enabled=true 가 켜지면 demo 패키지의 빈들이 등록된다 (DemoAuthController, DemoDataSeeder).
+#   - unit.firebase.enabled=false 로 InMemoryRealtimeDatabaseClient 가 활성화되어 모든 RTDB read/write 가
+#     인메모리 트리에서만 일어난다. 외부 자격 파일 / 실 RTDB 와 통신하지 않는다.
+#   - JWT secret/issuer/TTL 은 시연 전용 더미 값. 운영 secret 을 절대 여기에 두지 말 것.
+app:
+  demo:
+    enabled: true
+
+unit:
+  firebase:
+    enabled: false
+  jwt:
+    secret: DEMO_MODE_NON_PRODUCTION_SECRET_AT_LEAST_32_BYTES
+    issuer: unit-api-demo
+    session-ttl-seconds: 86400
+  semester:
+    current: 2026-1
+    expires-at: 2026-08-31T23:59:59Z
+
+logging:
+  level:
+    kr.unit.backend.demo: INFO
+# DEMO_MODE_END

@@ -32,7 +32,14 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             "/v1/ai/refine",
             "/v1/recap/",
             "/v1/health",
-            "/actuator/"
+            "/actuator/",
+            // DEMO_MODE_START
+            // 시연용 코드: 운영 환경에서는 비활성화되어야 한다.
+            // /v1/dev/demo-login 은 sessionToken을 발급하는 엔드포인트이므로 인증 없이 진입해야 한다.
+            // demo controller 자체는 app.demo.enabled=true 일 때만 등록되므로, 운영 모드에서는
+            // 이 prefix 가 permit 되어 있어도 매핑된 컨트롤러가 없어 404 로 응답한다.
+            "/v1/dev/"
+            // DEMO_MODE_END
     );
 
     private final JwtTokenProvider jwtTokenProvider;
