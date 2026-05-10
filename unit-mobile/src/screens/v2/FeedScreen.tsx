@@ -17,8 +17,9 @@ import type { RootStackParamList } from '../../types';
 import { useFeedPosts } from '../../hooks/useFeedPosts';
 import type { FeedScope } from '../../services/api/feedApi';
 import type { PostSummary } from '../../services/api/mappers/postMapper';
-import DevAuthPanel from '../../components/dev/DevAuthPanel';
-import DemoSchoolEntry from '../../components/dev/DemoSchoolEntry';
+// Dev/demo panels intentionally NOT mounted here — they live on SchoolSelectScreen
+// so they don't pollute the main Feed design. To enter demo mode: navigate to
+// UnitV2 → SchoolSelect.
 
 // FeedScreen renders inside Tabs -> Root stack at runtime. PostDetail and
 // Notifications live directly on Root; Search lives in the nested UnitV2 stack
@@ -75,12 +76,6 @@ export default function FeedV2() {
         />
       }
     >
-      {/* DEMO_MODE_START — 운영 모드에선 컴포넌트가 null 을 반환해 자동으로 숨겨진다. */}
-      <DemoSchoolEntry onEntered={() => refetch()} />
-      {/* DEMO_MODE_END */}
-
-      <DevAuthPanel />
-
       <View style={styles.tabRow}>
         <Tabs
           items={[
