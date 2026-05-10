@@ -25,34 +25,13 @@ import JobsScreen from '../screens/v2/JobsScreen';
 import MarketScreen from '../screens/v2/MarketScreen';
 import FriendsScreen from '../screens/v2/FriendsScreen';
 
-import type { RootStackProps } from '../types';
-
 const Stack = createNativeStackNavigator<RootStackParamList>();
-
-// Inline adapters: bridge legacy `courseId` → v2 `id`.
-// PostDetail no longer needs renaming — both stacks now use `postId: string`,
-// so it's wired directly without an adapter.
-function CourseDetailAdapter(props: RootStackProps<'CourseDetail'>) {
-  const adapted = {
-    ...props,
-    route: { ...props.route, params: { id: props.route.params.courseId } },
-  };
-  return <CourseDetailV2 {...(adapted as any)} />;
-}
-function CourseReviewAdapter(props: RootStackProps<'CourseReview'>) {
-  const adapted = {
-    ...props,
-    route: { ...props.route, params: { id: props.route.params.courseId } },
-  };
-  return <CourseReviewV2 {...(adapted as any)} />;
-}
 
 /**
  * Root navigator — all v2 screens promoted (PR-15).
  *
- * Legacy flat-stack routes still preserved for backwards-compat call sites
- * (PostDetail with `postId`, CourseDetail/Review with `courseId`). Inline
- * adapters bridge legacy params to v2 params.
+ * Param shapes are now unified across Root and UnitV2 stacks
+ * (postId/courseId/commentId all string). Adapters are no longer needed.
  *
  * UnitV2 nested stack (used via `navigate('UnitV2', { screen: 'Foo' })`)
  * provides the full 36-route hierarchy in v2-native param shape.
@@ -69,10 +48,10 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="PostDetail" component={PostDetailV2} />
       <Stack.Screen name="Courses" component={CoursesScreen} />
-      <Stack.Screen name="CourseDetail" component={CourseDetailAdapter} />
+      <Stack.Screen name="CourseDetail" component={CourseDetailV2} />
       <Stack.Screen
         name="CourseReview"
-        component={CourseReviewAdapter}
+        component={CourseReviewV2}
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen

@@ -41,8 +41,8 @@ export type UnitV2ParamList = {
 
   // Courses (3)
   Courses: undefined;
-  CourseDetail: { id: number };
-  CourseReview: { id: number };
+  CourseDetail: { courseId: string };
+  CourseReview: { courseId: string };
 
   // 자치/알림/나 (3)
   Jury: undefined;
@@ -87,8 +87,8 @@ export type RootStackParamList = {
   Write: undefined;
   PostDetail: { postId: string };
   Courses: undefined;
-  CourseDetail: { courseId: number };
-  CourseReview: { courseId: number };
+  CourseDetail: { courseId: string };
+  CourseReview: { courseId: string };
   Jury: { caseId?: number };
   ChatRoom: { chatId: number };
   Notifications: undefined;
