@@ -26,13 +26,13 @@ function maskToken(token: string): string {
 }
 
 export default function DevAuthPanel() {
-  if (!__DEV__) return null;
-
+  // Hooks must be called unconditionally before any early return.
   const [draft, setDraft] = useState('');
   const [current, setCurrent] = useState<string | null | undefined>(undefined);
   const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
+    if (!__DEV__) return;
     let mounted = true;
     void getSessionToken().then(t => {
       if (mounted) setCurrent(t);
@@ -41,6 +41,8 @@ export default function DevAuthPanel() {
       mounted = false;
     };
   }, []);
+
+  if (!__DEV__) return null;
 
   const onSave = async () => {
     const trimmed = draft.trim();

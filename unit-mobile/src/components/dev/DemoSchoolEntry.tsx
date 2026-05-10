@@ -19,9 +19,13 @@ type Props = {
 };
 
 export default function DemoSchoolEntry({ onEntered }: Props) {
-  if (!isDemoMode()) return null;
-
+  // Hooks must be called unconditionally before any early return — React
+  // Rules of Hooks. Calling useDemoLogin here is cheap when demo mode is off
+  // (its internal useState/useCallback never observe state changes since
+  // start() is never invoked).
   const demo = useDemoLogin({ onSuccess: () => onEntered?.() });
+
+  if (!isDemoMode()) return null;
 
   return (
     <View style={styles.wrap}>
