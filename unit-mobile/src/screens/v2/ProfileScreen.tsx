@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
   AppBar,
@@ -16,7 +16,6 @@ import {
 import { C, F, R, SP } from '../../theme/tokens';
 import type { UnitV2ParamList } from '../../types/unit-v2';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMyProfile } from '../../hooks/useMyProfile';
 
 type Nav = NativeStackNavigationProp<UnitV2ParamList>;
 
@@ -24,7 +23,6 @@ export default function ProfileV2() {
   const navigation = useNavigation<Nav>();
   const [findable, setFindable] = useState(true);
   const [scope, setScope] = useState<'dept' | 'friends' | 'all'>('dept');
-  const { status, profile, stats, error } = useMyProfile();
 
   return (
     <Screen
@@ -37,57 +35,34 @@ export default function ProfileV2() {
       }
     >
       <View style={styles.hero}>
-        {status === 'loading' || status === 'idle' ? (
-          <ActivityIndicator />
-        ) : status === 'auth-required' ? (
-          <View>
-            <Text style={styles.heroErrorTitle}>로그인이 필요합니다</Text>
-            <Text style={styles.heroErrorBody}>
-              피드 상단의 DEV 패널에서 sessionToken을 입력해주세요.
+        <View style={styles.heroRow}>
+          <Avatar name="민서연" size={56} />
+          <View style={{ flex: 1 }}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>민서연</Text>
+              <MannerBadge grade="A0" size="sm" />
+            </View>
+            <Text style={styles.deptText}>
+              아주대학교 · 소프트웨어학과 · 22학번
             </Text>
           </View>
-        ) : status === 'error' ? (
-          <View>
-            <Text style={styles.heroErrorTitle}>프로필을 불러오지 못했습니다</Text>
-            <Text style={styles.heroErrorBody}>{error?.message ?? ''}</Text>
-          </View>
-        ) : profile ? (
-          <>
-            <View style={styles.heroRow}>
-              <Avatar name={profile.name} size={56} />
-              <View style={{ flex: 1 }}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.name}>{profile.name}</Text>
-                  {/* MannerBadge stays as a placeholder — backend grade not in /me yet. */}
-                  <MannerBadge grade="A0" size="sm" />
-                </View>
-                <Text style={styles.deptText}>
-                  {[
-                    profile.schoolLabel ?? profile.schoolId ?? '학교 미등록',
-                    profile.departmentLabel ?? profile.departmentId ?? '학과 미등록',
-                    profile.studentNumberMasked ?? '학번 미등록',
-                  ].join(' · ')}
-                </Text>
-                {profile.isStudentVerificationReserved && (
-                  <Text style={styles.reservedNote}>학생 인증 준비 중</Text>
-                )}
-              </View>
-            </View>
+          <Pressable hitSlop={6}>
+            <Text style={styles.editLink}>편집</Text>
+          </Pressable>
+        </View>
 
-            <View style={styles.stats}>
-              {[
-                { l: '작성', v: stats?.posts ?? 0 },
-                { l: '댓글', v: stats?.comments ?? 0 },
-                { l: '받은 추천', v: stats?.likesReceived ?? 0 },
-              ].map((s, i) => (
-                <View key={i} style={styles.statCol}>
-                  <Text style={styles.statValue}>{String(s.v)}</Text>
-                  <Text style={styles.statLabel}>{s.l}</Text>
-                </View>
-              ))}
+        <View style={styles.stats}>
+          {[
+            { l: '작성', v: '18' },
+            { l: '댓글', v: '124' },
+            { l: '받은 추천', v: '326' },
+          ].map((s, i) => (
+            <View key={i} style={styles.statCol}>
+              <Text style={styles.statValue}>{s.v}</Text>
+              <Text style={styles.statLabel}>{s.l}</Text>
             </View>
-          </>
-        ) : null}
+          ))}
+        </View>
       </View>
 
       <Pressable
@@ -195,10 +170,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   deptText: { marginTop: 2, fontSize: F.size.sm, color: C.textMeta },
-  reservedNote: { marginTop: 2, fontSize: F.size.xs, color: C.hint },
   editLink: { fontSize: F.size.sm, color: C.inkNavy, paddingHorizontal: SP[2], paddingVertical: SP[1] },
-  heroErrorTitle: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, marginBottom: 4 },
-  heroErrorBody: { fontSize: F.size.sm, color: C.textMeta },
 
   stats: { marginTop: SP[5], paddingTop: SP[4], flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.divider },
   statCol: { flex: 1, alignItems: 'center' },

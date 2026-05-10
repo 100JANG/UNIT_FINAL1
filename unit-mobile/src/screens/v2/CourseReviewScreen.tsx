@@ -1,8 +1,6 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
+import { useNavigation } from '@react-navigation/native';
 import {
   AppBar,
   IconButton,
@@ -10,27 +8,13 @@ import {
   IcX,
 } from '../../components/ui';
 import { C, F, R, SP } from '../../theme/tokens';
-import type { RootStackParamList } from '../../types';
-import { useCreateCourseReview } from '../../hooks/useCreateCourseReview';
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
-type R$ = RouteProp<RootStackParamList, 'CourseReview'>;
+type Vote = 'rec' | 'no' | null;
 
 export default function CourseReviewV2() {
-  const navigation = useNavigation<Nav>();
-  const { params } = useRoute<R$>();
-
-  const draft = useCreateCourseReview({
-    courseId: params.courseId,
-    onSuccess: () => {
-      // Replace so back-press does not return to the now-stale review screen.
-      // CourseDetail will refetch on mount and show the updated stats.
-      navigation.replace('CourseDetail', { courseId: params.courseId });
-    },
-  });
-
-  const showCount = draft.comment.length > 0;
-  const tooLong = draft.comment.length > draft.maxCommentLength;
+  const navigation = useNavigation();
+  const [vote, setVote] = useState<Vote>(null);
+  const [body, setBody] = useState('');
 
   return (
     <Screen
@@ -38,122 +22,71 @@ export default function CourseReviewV2() {
         <AppBar
           leading={<IconButton icon={<IcX />} onPress={() => navigation.goBack()} />}
           trailing={
-            <Pressable
-              hitSlop={6}
-              onPress={draft.skipReview}
-              disabled={draft.isSubmitting}
-            >
-              <Text style={[styles.skipText, draft.isSubmitting && { opacity: 0.5 }]}>
-                건너뛰기
-              </Text>
+            <Pressable hitSlop={6} onPress={() => navigation.goBack()}>
+              <Text style={styles.skipText}>건너뛰기</Text>
             </Pressable>
           }
         />
       }
     >
       <View style={styles.body}>
-        <Text style={styles.title}>강의 평가</Text>
-        <Text style={styles.intro}>
-          한 줄 평가 후 다른 강의평을 볼 수 있어요. 추천 / 비추천 / 건너뛰기 중 하나를 선택해주세요.
-        </Text>
+        <Text style={styles.name}>데이터분석개론</Text>
+        <Text style={styles.meta}>김지연 · 소프트웨어학과</Text>
+        <Text style={styles.intro}>한 줄 평가 후 다른 강의평을 볼 수 있어요</Text>
 
         <View style={styles.btnRow}>
-          <VoteButton
-            emoji="👍"
-            label="추천"
-            on={draft.vote === 'RECOMMEND'}
-            disabled={draft.isSubmitting}
-            onPress={() =>
-              draft.setVote(draft.vote === 'RECOMMEND' ? null : 'RECOMMEND')
-            }
-          />
-          <VoteButton
-            emoji="👎"
-            label="비추천"
-            on={draft.vote === 'NOT_RECOMMEND'}
-            disabled={draft.isSubmitting}
-            onPress={() =>
-              draft.setVote(draft.vote === 'NOT_RECOMMEND' ? null : 'NOT_RECOMMEND')
-            }
-          />
+          <Pressable
+            onPress={() => setVote('rec')}
+            style={({ pressed }) => [
+              styles.bigBtn,
+              vote === 'rec' && styles.bigBtnOn,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Text style={[styles.bigBtnEmoji, vote === 'rec' && { color: C.white }]}>👍</Text>
+            <Text style={[styles.bigBtnText, vote === 'rec' && { color: C.white }]}>추천</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setVote('no')}
+            style={({ pressed }) => [
+              styles.bigBtn,
+              vote === 'no' && styles.bigBtnOn,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Text style={[styles.bigBtnEmoji, vote === 'no' && { color: C.white }]}>👎</Text>
+            <Text style={[styles.bigBtnText, vote === 'no' && { color: C.white }]}>비추천</Text>
+          </Pressable>
         </View>
 
         <Text style={styles.label}>한 줄로 남기고 싶은 말 (선택)</Text>
         <TextInput
-          value={draft.comment}
-          onChangeText={draft.setComment}
-          editable={!draft.isSubmitting}
+          value={body}
+          onChangeText={setBody}
           multiline
-          maxLength={draft.maxCommentLength + 50 /* allow temporary over-paste; client validation flags it */}
+          maxLength={150}
           placeholder="다음 학기에 들을 학생에게 도움이 되는 한마디"
           placeholderTextColor="#C9CDD3"
           style={styles.textarea}
           textAlignVertical="top"
         />
-        {showCount && (
-          <Text style={[styles.counter, tooLong && { color: C.warn }]}>
-            {draft.comment.length} / {draft.maxCommentLength}
-          </Text>
-        )}
-
-        {draft.error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{draft.error.message}</Text>
-            {draft.error.fieldErrors?.map(f => (
-              <Text key={f.field} style={styles.fieldError}>
-                · {f.field}: {f.reason}
-              </Text>
-            ))}
-          </View>
-        )}
+        <Text style={styles.counter}>{body.length} / 150</Text>
       </View>
 
       <View style={styles.bottomBar}>
         <Pressable
-          disabled={!draft.canSubmit}
-          onPress={draft.submitReview}
+          disabled={!vote}
+          onPress={() => navigation.goBack()}
           style={({ pressed }) => [
             styles.cta,
-            { backgroundColor: draft.canSubmit ? C.inkNavy : C.surface2 },
-            pressed && draft.canSubmit && { opacity: 0.9 },
+            { backgroundColor: vote ? C.inkNavy : C.surface2 },
+            pressed && vote && { opacity: 0.9 },
           ]}
         >
-          <Text style={[styles.ctaText, { color: draft.canSubmit ? C.white : C.hint }]}>
-            {draft.isSubmitting ? '등록 중…' : '등록'}
-          </Text>
+          <Text style={[styles.ctaText, { color: vote ? C.white : C.hint }]}>등록</Text>
         </Pressable>
       </View>
     </Screen>
-  );
-}
-
-function VoteButton({
-  emoji,
-  label,
-  on,
-  disabled,
-  onPress,
-}: {
-  emoji: string;
-  label: string;
-  on: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.bigBtn,
-        on && styles.bigBtnOn,
-        disabled && { opacity: 0.5 },
-        pressed && !disabled && { opacity: 0.85 },
-      ]}
-    >
-      <Text style={[styles.bigBtnEmoji, on && { color: C.white }]}>{emoji}</Text>
-      <Text style={[styles.bigBtnText, on && { color: C.white }]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -161,8 +94,9 @@ const styles = StyleSheet.create({
   skipText: { fontSize: F.size.sm, color: C.hint, paddingHorizontal: SP[2] },
 
   body: { flex: 1, paddingHorizontal: SP[5], paddingTop: SP[4] },
-  title: { fontSize: F.size.h2, fontFamily: F.familySemiBold, color: C.text, letterSpacing: -0.4 },
-  intro: { marginTop: SP[2], fontSize: F.size.sm, color: C.hint, lineHeight: 19 },
+  name: { fontSize: F.size.h1, fontFamily: F.familySemiBold, color: C.text, letterSpacing: -0.4 },
+  meta: { marginTop: 4, fontSize: F.size.base, color: C.textMeta },
+  intro: { marginTop: SP[3], fontSize: F.size.sm, color: C.hint },
 
   btnRow: { marginTop: SP[5], flexDirection: 'row', gap: SP[2] },
   bigBtn: {
@@ -190,17 +124,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   counter: { marginTop: 4, textAlign: 'right', fontSize: F.size.xs, color: C.hint },
-
-  errorBox: {
-    marginTop: SP[4],
-    padding: SP[3],
-    backgroundColor: '#FFF6F6',
-    borderRadius: R.md,
-    borderWidth: 1,
-    borderColor: '#F5C6C6',
-  },
-  errorText: { fontSize: F.size.sm, color: C.warn, fontFamily: F.familyMedium },
-  fieldError: { fontSize: F.size.xs, color: C.warn, marginTop: 2 },
 
   bottomBar: { paddingHorizontal: SP[5], paddingTop: SP[3], paddingBottom: SP[5] },
   cta: { height: 48, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },

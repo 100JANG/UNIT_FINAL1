@@ -1,45 +1,44 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
 import {
   AppBar,
   Chip,
   Hairline,
   IconButton,
+  Pill,
   Screen,
   IcSearch,
 } from '../../components/ui';
 import { C, F, R, SP } from '../../theme/tokens';
 import type { RootStackParamList } from '../../types';
-import { useCourses } from '../../hooks/useCourses';
-import type { CourseSummary } from '../../types/course';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-// TODO(profile-cycle): replace with /v1/users/me.schoolId once Profile is wired.
-// Backend requires schoolId — without it, the response is an empty page.
-const FALLBACK_SCHOOL_ID = 'ajou';
+const COURSES = [
+  { id: 'demo_course_1', name: '데이터분석개론', prof: '김지연', dept: '소프트웨어학과', credit: 3, rec: 78, n: 412, partic: 73, trust: true },
+  { id: 'demo_course_2', name: '경영학원론',     prof: '박상우', dept: '경영학과',       credit: 3, rec: 64, n: 286, partic: 81, trust: true },
+  { id: 'demo_course_3', name: '미시경제학',     prof: '이태형', dept: '경제학과',       credit: 3, rec: 41, n: 198, partic: 58, trust: false },
+  { id: 'demo_course_4', name: '한국근현대사',   prof: '정민서', dept: '사학과',         credit: 2, rec: 89, n: 524, partic: 76, trust: true },
+];
 
-const FILTERS = ['아주대학교', '추천순'];
+const FILTERS = ['2025-1학기', '아주대학교', '전체 학과', '추천순'];
+
+type Vote = 'rec' | 'no' | null;
 
 export default function CoursesV2() {
   const navigation = useNavigation<Nav>();
-  const { status, courses, error, hasMore, isLoadingMore, loadMore, refetch } = useCourses({
-    schoolId: FALLBACK_SCHOOL_ID,
-  });
+  const [voted, setVoted] = useState<Record<string, Vote>>({});
+  const vote = (id: string, v: 'rec' | 'no') =>
+    setVoted((p) => ({ ...p, [id]: p[id] === v ? null : v }));
 
   return (
     <Screen
       appBar={
         <AppBar
           title="강의평"
-          trailing={
-            <IconButton
-              icon={<IcSearch />}
-              onPress={() => navigation.navigate('UnitV2', { screen: 'Search' })}
-            />
-          }
+          trailing={<IconButton icon={<IcSearch />} onPress={() => navigation.navigate('UnitV2', { screen: 'Search' })} />}
         />
       }
     >
@@ -56,97 +55,74 @@ export default function CoursesV2() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
       >
-        {FILTERS.map(f => (
+        {FILTERS.map((f) => (
           <Chip key={f}>{f}</Chip>
         ))}
       </ScrollView>
       <Hairline />
 
-      {status === 'loading' || status === 'idle' ? (
-        <View style={styles.center}><ActivityIndicator /></View>
-      ) : status === 'auth-required' ? (
-        <View style={styles.center}>
-          <Text style={styles.stateTitle}>로그인이 필요합니다</Text>
-          <Text style={styles.stateBody}>
-            개발 단계에서는 피드 상단의 DEV 패널에서 sessionToken을 입력해주세요.
-          </Text>
-        </View>
-      ) : status === 'reserved' ? (
-        <View style={styles.center}>
-          <Text style={styles.stateTitle}>준비 중인 기능입니다</Text>
-          <Text style={styles.stateBody}>{error?.message ?? ''}</Text>
-        </View>
-      ) : status === 'business-rule' ? (
-        <View style={styles.center}>
-          <Text style={styles.stateTitle}>강의를 표시할 수 없습니다</Text>
-          <Text style={styles.stateBody}>{error?.message ?? '잠시 후 다시 시도해주세요.'}</Text>
-        </View>
-      ) : status === 'error' ? (
-        <View style={styles.center}>
-          <Text style={styles.stateTitle}>강의를 불러오지 못했습니다</Text>
-          <Text style={styles.stateBody}>{error?.message ?? '잠시 후 다시 시도해주세요.'}</Text>
-          <Pressable onPress={refetch} style={styles.retryBtn}>
-            <Text style={styles.retryText}>다시 시도</Text>
-          </Pressable>
-        </View>
-      ) : status === 'empty' ? (
-        <View style={styles.center}>
-          <Text style={styles.stateTitle}>표시할 강의가 없어요</Text>
-          <Text style={styles.stateBody}>학교 정보가 등록되면 강의가 표시됩니다.</Text>
-        </View>
-      ) : (
-        <>
-          {courses.map((c, i) => (
-            <View key={c.courseId}>
-              <CourseRow
-                course={c}
-                onPress={() =>
-                  navigation.navigate('CourseDetail', { courseId: c.courseId })
-                }
-              />
-              {i < courses.length - 1 && <Hairline mx={SP[4]} />}
-            </View>
-          ))}
-          {hasMore && (
+      {COURSES.map((c, i) => (
+        <View key={c.id}>
+          <View style={styles.row}>
             <Pressable
-              onPress={loadMore}
-              disabled={isLoadingMore}
-              style={({ pressed }) => [
-                styles.loadMoreBtn,
-                (pressed || isLoadingMore) && { opacity: 0.6 },
-              ]}
+              onPress={() => navigation.navigate('CourseDetail', { courseId: c.id })}
+              style={({ pressed }) => [pressed && styles.pressed]}
             >
-              {isLoadingMore ? (
-                <ActivityIndicator size="small" />
-              ) : (
-                <Text style={styles.loadMoreText}>강의 더보기</Text>
-              )}
+              <View style={styles.titleRow}>
+                <Text style={styles.name}>{c.name}</Text>
+                <Text style={styles.prof}>{c.prof}</Text>
+                {c.trust && (
+                  <View style={{ marginLeft: 'auto' }}>
+                    <Pill tone="mint">신뢰</Pill>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.meta}>{c.dept} · {c.credit}학점</Text>
+              <View style={styles.statRow}>
+                <Text style={styles.statRec}>
+                  <Text style={{ color: C.inkNavy, fontFamily: F.familySemiBold }}>{c.rec}%</Text> 추천
+                </Text>
+                <Text style={styles.statSep}>·</Text>
+                <Text style={styles.stat}>응답 {c.n}</Text>
+                <Text style={styles.statSep}>·</Text>
+                <Text style={styles.stat}>참여율 {c.partic}%</Text>
+              </View>
+              <View style={styles.barTrack}>
+                <View style={[styles.barFill, { width: `${c.rec}%` }]} />
+              </View>
             </Pressable>
-          )}
-        </>
-      )}
-    </Screen>
-  );
-}
 
-function CourseRow({
-  course,
-  onPress,
-}: {
-  course: CourseSummary;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
-    >
-      <View style={styles.titleRow}>
-        <Text style={styles.name} numberOfLines={1}>{course.name}</Text>
-        <Text style={styles.prof}>{course.professor}</Text>
-      </View>
-      <Text style={styles.meta}>{course.semester}</Text>
-    </Pressable>
+            <View style={styles.voteRow}>
+              <Pressable
+                onPress={() => vote(c.id, 'rec')}
+                style={({ pressed }) => [
+                  styles.voteBtn,
+                  voted[c.id] === 'rec' && styles.voteBtnRec,
+                  pressed && voted[c.id] !== 'rec' && { backgroundColor: C.surface },
+                ]}
+              >
+                <Text style={[styles.voteText, voted[c.id] === 'rec' && { color: C.white }]}>
+                  👍 추천
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => vote(c.id, 'no')}
+                style={({ pressed }) => [
+                  styles.voteBtn,
+                  voted[c.id] === 'no' && styles.voteBtnNo,
+                  pressed && voted[c.id] !== 'no' && { backgroundColor: C.surface },
+                ]}
+              >
+                <Text style={[styles.voteText, voted[c.id] === 'no' && { color: C.white }]}>
+                  👎 비추천
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+          {i < COURSES.length - 1 && <Hairline mx={SP[4]} />}
+        </View>
+      ))}
+    </Screen>
   );
 }
 
@@ -167,37 +143,26 @@ const styles = StyleSheet.create({
   filterRow: { paddingHorizontal: SP[4], paddingBottom: SP[2], gap: SP[2] },
 
   row: { paddingHorizontal: SP[4], paddingVertical: SP[3] },
+  pressed: { opacity: 0.85 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', gap: SP[2], marginBottom: 4 },
-  name: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, letterSpacing: -0.3, flexShrink: 1 },
+  name: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, letterSpacing: -0.3 },
   prof: { fontSize: F.size.sm, color: C.textMeta },
-  meta: { fontSize: F.size.xs, color: C.hint },
+  meta: { fontSize: F.size.xs, color: C.hint, marginBottom: SP[2] },
+  statRow: { flexDirection: 'row', alignItems: 'center', gap: SP[2] },
+  statRec: { fontSize: F.size.sm, color: C.textMeta },
+  stat: { fontSize: F.size.sm, color: C.textMeta },
+  statSep: { color: C.divider2 },
+  barTrack: { marginTop: SP[2], height: 3, borderRadius: R.full, backgroundColor: C.surface2, overflow: 'hidden' },
+  barFill: { height: '100%', backgroundColor: C.inkNavy },
 
-  center: {
-    paddingHorizontal: SP[6],
-    paddingVertical: SP[8],
-    alignItems: 'center',
-    gap: 6,
+  voteRow: { marginTop: SP[3], flexDirection: 'row', gap: SP[2] },
+  voteBtn: {
+    flex: 1, height: 36, borderRadius: R.md,
+    borderWidth: 1, borderColor: C.divider2,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.white,
   },
-  stateTitle: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, textAlign: 'center' },
-  stateBody: { fontSize: F.size.sm, color: C.textMeta, textAlign: 'center' },
-  retryBtn: {
-    marginTop: SP[3],
-    paddingHorizontal: SP[4],
-    paddingVertical: SP[2],
-    backgroundColor: C.inkNavy,
-    borderRadius: R.md,
-  },
-  retryText: { color: C.white, fontFamily: F.familySemiBold, fontSize: F.size.sm },
-
-  loadMoreBtn: {
-    marginHorizontal: SP[4],
-    marginVertical: SP[3],
-    paddingVertical: SP[2],
-    alignItems: 'center',
-    backgroundColor: C.surface,
-    borderRadius: R.md,
-    borderWidth: 1,
-    borderColor: C.divider2,
-  },
-  loadMoreText: { color: C.text, fontSize: F.size.sm, fontFamily: F.familyMedium },
+  voteBtnRec: { backgroundColor: C.inkNavy, borderColor: C.inkNavy },
+  voteBtnNo: { backgroundColor: C.danger, borderColor: C.danger },
+  voteText: { fontSize: F.size.sm, color: C.textSub, fontFamily: F.familyMedium },
 });
