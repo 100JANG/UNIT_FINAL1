@@ -1,57 +1,68 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import {
   AppBar,
   Hairline,
   Screen,
   Tabs,
 } from '../../components/ui';
-import { C, F, SP } from '../../theme/tokens';
-import type { UnitV2ParamList } from '../../types/unit-v2';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { C, F, R, SP } from '../../theme/tokens';
+import type { RootStackParamList } from '../../types';
+import { useNotifications } from '../../hooks/useNotifications';
+import type { NotificationItem, NotificationType } from '../../types/notification';
 
-type Nav = NativeStackNavigationProp<UnitV2ParamList>;
-type Kind = 'cmt' | 'rec' | 'jury' | 'sys';
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-type Notif = { kind: Kind; read: boolean; ago: string; title: string; body: string };
+const TYPE_LABEL: Record<NotificationType, string> = {
+  POST_COMMENT: '댓글',
+  POST_LIKE: '추천',
+  JURY_SUMMON: '배심원',
+  RECAP_READY: '리캡',
+  REPORT_RESULT: '신고',
+  SYSTEM: '시스템',
+};
 
-const INIT: Notif[] = [
-  { kind: 'cmt',  read: false, ago: '방금',     title: '내 글에 댓글이 달렸어요',                    body: '익명3 · 식단표 학사정보 사이트에 올라와 있어요…' },
-  { kind: 'jury', read: false, ago: '5분 전',  title: '같은 학과 학생들의 판단을 기다리고 있어요',  body: '신고된 글 1건 · 24시간 안에 한 표 부탁드려요' },
-  { kind: 'rec',  read: false, ago: '32분 전', title: '내 댓글이 12명에게 추천받았어요',            body: '"중도 4층 자리 거의 다 차 있고…"' },
-  { kind: 'cmt',  read: true,  ago: '2시간 전', title: '내가 쓴 글에 새 댓글 4개',                  body: '자취방 계약할 때 조심할 점 공유합니다' },
-  { kind: 'sys',  read: true,  ago: '어제',     title: '강의평 시즌이 열렸어요',                    body: '한 줄 평가 후 다른 강의평을 볼 수 있어요' },
-];
-
-const KIND_LABEL: Record<Kind, string> = { cmt: '댓글', rec: '추천', jury: '배심원', sys: '시스템' };
+function formatRelative(iso: string): string {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (Number.isNaN(diff)) return '';
+  if (diff < 60) return '방금';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  return `${Math.floor(diff / 86400)}일 전`;
+}
 
 export default function NotificationsV2() {
   const navigation = useNavigation<Nav>();
   const [tab, setTab] = useState<'all' | 'unread'>('all');
-  const [items, setItems] = useState(INIT);
+  const {
+    status,
+    items,
+    error,
+    hasMore,
+    isLoadingMore,
+    unreadCount,
+    loadMore,
+    refetch,
+    markRead,
+    markAllRead,
+  } = useNotifications();
 
-  const list = useMemo(
-    () => (tab === 'all' ? items : items.filter((n) => !n.read)),
+  const visible = useMemo(
+    () => (tab === 'all' ? items : items.filter(n => !n.isRead)),
     [tab, items],
   );
 
-  const unreadCount = items.filter((n) => !n.read).length;
-
-  const onItemPress = (idx: number) => {
-    const real = items.findIndex((it, i) => it === list[idx]);
-    if (real >= 0) {
-      setItems((prev) =>
-        prev.map((it, i) => (i === real ? { ...it, read: true } : it)),
-      );
+  const onItemPress = (n: NotificationItem) => {
+    markRead(n.id);
+    if (n.type === 'JURY_SUMMON') {
+      // Jury caseId is not in the notification payload — backend currently links
+      // via deep RTDB structure. Until a payload field is added we just open
+      // the Jury entry screen.
+      navigation.navigate('Jury', {});
     }
-    if (list[idx].kind === 'jury') {
-      navigation.navigate('Jury');
-    }
-  };
-
-  const markAllRead = () => {
-    setItems((prev) => prev.map((it) => ({ ...it, read: true })));
   };
 
   return (
@@ -85,42 +96,76 @@ export default function NotificationsV2() {
         onChange={(id) => setTab(id as 'all' | 'unread')}
       />
 
-      {list.map((n, i) => (
-        <View key={i}>
-          <Pressable
-            onPress={() => onItemPress(i)}
-            style={({ pressed }) => [
-              styles.row,
-              !n.read && styles.unread,
-              pressed && { backgroundColor: C.surface },
-            ]}
-          >
-            <View
-              style={[
-                styles.dot,
-                { backgroundColor: n.read ? 'transparent' : C.inkNavy },
-              ]}
-            />
-            <View style={{ flex: 1 }}>
-              <View style={styles.metaRow}>
-                <Text style={styles.kind}>{KIND_LABEL[n.kind]}</Text>
-                <Text style={styles.dotSep}>·</Text>
-                <Text style={styles.ago}>{n.ago}</Text>
-              </View>
-              <Text style={[styles.title, !n.read && { fontFamily: F.familyMedium }]}>
-                {n.title}
-              </Text>
-              <Text style={styles.body} numberOfLines={1}>{n.body}</Text>
-            </View>
-          </Pressable>
-          <Hairline mx={SP[4]} />
+      {status === 'loading' || status === 'idle' ? (
+        <View style={styles.center}><ActivityIndicator /></View>
+      ) : status === 'auth-required' ? (
+        <View style={styles.center}>
+          <Text style={styles.stateTitle}>로그인이 필요합니다</Text>
+          <Text style={styles.stateBody}>피드 상단의 DEV 패널에서 sessionToken을 입력해주세요.</Text>
         </View>
-      ))}
-
-      {list.length === 0 && (
+      ) : status === 'reserved' ? (
+        <View style={styles.center}>
+          <Text style={styles.stateTitle}>준비 중인 기능입니다</Text>
+          <Text style={styles.stateBody}>{error?.message ?? ''}</Text>
+        </View>
+      ) : status === 'error' ? (
+        <View style={styles.center}>
+          <Text style={styles.stateTitle}>알림을 불러오지 못했습니다</Text>
+          <Text style={styles.stateBody}>{error?.message ?? ''}</Text>
+          <Pressable onPress={refetch} style={styles.retryBtn}>
+            <Text style={styles.retryText}>다시 시도</Text>
+          </Pressable>
+        </View>
+      ) : status === 'empty' || visible.length === 0 ? (
         <Text style={styles.empty}>
           {tab === 'unread' ? '안 읽은 알림이 없어요' : '알림이 없어요'}
         </Text>
+      ) : (
+        <ScrollView>
+          {visible.map(n => (
+            <View key={n.id}>
+              <Pressable
+                onPress={() => onItemPress(n)}
+                style={({ pressed }) => [
+                  styles.row,
+                  !n.isRead && styles.unread,
+                  pressed && { backgroundColor: C.surface },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    { backgroundColor: n.isRead ? 'transparent' : C.inkNavy },
+                  ]}
+                />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.kind}>{TYPE_LABEL[n.type] ?? n.type}</Text>
+                    <Text style={styles.dotSep}>·</Text>
+                    <Text style={styles.ago}>{formatRelative(n.createdAt)}</Text>
+                  </View>
+                  <Text style={[styles.title, !n.isRead && { fontFamily: F.familyMedium }]}>
+                    {n.title}
+                  </Text>
+                  <Text style={styles.body} numberOfLines={1}>{n.body}</Text>
+                </View>
+              </Pressable>
+              <Hairline mx={SP[4]} />
+            </View>
+          ))}
+          {hasMore && (
+            <Pressable
+              onPress={loadMore}
+              disabled={isLoadingMore}
+              style={({ pressed }) => [
+                styles.loadMoreBtn,
+                (pressed || isLoadingMore) && { opacity: 0.6 },
+              ]}
+            >
+              {isLoadingMore ? <ActivityIndicator size="small" /> : <Text style={styles.loadMoreText}>더보기</Text>}
+            </Pressable>
+          )}
+        </ScrollView>
       )}
     </Screen>
   );
@@ -166,4 +211,12 @@ const styles = StyleSheet.create({
     color: C.hint,
     textAlign: 'center',
   },
+
+  center: { padding: SP[6], alignItems: 'center', gap: 6 },
+  stateTitle: { fontSize: F.size.lg, fontFamily: F.familySemiBold, color: C.text, textAlign: 'center' },
+  stateBody: { fontSize: F.size.sm, color: C.textMeta, textAlign: 'center' },
+  retryBtn: { marginTop: SP[3], paddingHorizontal: SP[4], paddingVertical: SP[2], backgroundColor: C.inkNavy, borderRadius: R.md },
+  retryText: { color: C.white, fontSize: F.size.sm, fontFamily: F.familySemiBold },
+  loadMoreBtn: { marginHorizontal: SP[4], marginVertical: SP[3], paddingVertical: SP[2], alignItems: 'center', backgroundColor: C.surface, borderRadius: R.md, borderWidth: 1, borderColor: C.divider2 },
+  loadMoreText: { color: C.text, fontSize: F.size.sm, fontFamily: F.familyMedium },
 });

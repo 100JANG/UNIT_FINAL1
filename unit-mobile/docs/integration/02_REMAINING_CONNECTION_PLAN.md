@@ -65,9 +65,14 @@
 - 이월: `OtherProfileScreen` 연결, MyLikesScreen 신규 화면, profile settings 수정 endpoint
 - 상세: [11_PROFILE_ACTIVITY_REPORT.md](11_PROFILE_ACTIVITY_REPORT.md)
 
-### Cycle G — Notifications
-- 화면: `NotificationsScreen`
-- API: `GET /v1/notifications?cursor=&limit=`, `POST /v1/notifications/{id}/read`
+### ~~Cycle G — Notifications~~ → **완료 (Cycle 7)**
+- 화면: `NotificationsScreen` ✅
+- API:
+  - ✅ `GET /v1/notifications?cursor=&limit=`
+  - ✅ `PATCH /v1/notifications/{id}` (mark read)
+  - ✅ `POST /v1/notifications/mark-all-read`
+- 미연결: FCM 토큰 등록(runbook 절대금지), 단건 DELETE, RTDB realtime subscription(Cycle 8)
+- 상세: [12_NOTIFICATIONS_REPORT.md](12_NOTIFICATIONS_REPORT.md)
 
 ### Cycle H — RTDB Read Subscription (READ-ONLY)
 - 선결: `EXPO_PUBLIC_ENABLE_RTDATABASE=true` + Firebase 설정값 입력
