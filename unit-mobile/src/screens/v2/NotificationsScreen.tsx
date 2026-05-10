@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,6 +12,8 @@ import {
 import { C, F, R, SP } from '../../theme/tokens';
 import type { RootStackParamList } from '../../types';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useRtdbValue } from '../../hooks/useRtdbValue';
+import { useMyUserId } from '../../hooks/useMyUserId';
 import type { NotificationItem, NotificationType } from '../../types/notification';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -49,6 +51,24 @@ export default function NotificationsV2() {
     markRead,
     markAllRead,
   } = useNotifications();
+
+  // RTDB realtime subscription: when EXPO_PUBLIC_ENABLE_RTDATABASE=true and
+  // Firebase env is configured, subscribe to /notifications/{userId}. Any
+  // change (new notification arriving, marked read elsewhere) triggers a
+  // single REST refetch so the list stays the source of truth. When disabled,
+  // useRtdbValue is a no-op and this whole chain stays inert.
+  const userId = useMyUserId();
+  const rtdbPath = userId ? `/notifications/${userId}` : null;
+  const rtdbValue = useRtdbValue<unknown>(rtdbPath);
+  const lastRtdbRef = useRef<unknown>(rtdbValue);
+  useEffect(() => {
+    if (rtdbValue !== lastRtdbRef.current) {
+      lastRtdbRef.current = rtdbValue;
+      // Skip the first emission (initial subscription value) to avoid a
+      // duplicate refetch right after mount.
+      if (rtdbValue !== null) refetch();
+    }
+  }, [rtdbValue, refetch]);
 
   const visible = useMemo(
     () => (tab === 'all' ? items : items.filter(n => !n.isRead)),

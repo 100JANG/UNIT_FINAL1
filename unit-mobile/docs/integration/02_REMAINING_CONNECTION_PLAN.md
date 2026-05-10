@@ -74,12 +74,13 @@
 - 미연결: FCM 토큰 등록(runbook 절대금지), 단건 DELETE, RTDB realtime subscription(Cycle 8)
 - 상세: [12_NOTIFICATIONS_REPORT.md](12_NOTIFICATIONS_REPORT.md)
 
-### Cycle H — RTDB Read Subscription (READ-ONLY)
+### ~~Cycle H — RTDB Read Subscription (READ-ONLY)~~ → **완료 (Cycle 8)**
 - 선결: `EXPO_PUBLIC_ENABLE_RTDATABASE=true` + Firebase 설정값 입력
-- Firebase JS SDK 도입 (Expo 호환): `@react-native-firebase/database` 또는 `firebase/database` (web SDK)
-- 구독 경로 contract: [02_RTDATABASE_SUBSCRIPTION_CONTRACT.md](../backend-contract/02_RTDATABASE_SUBSCRIPTION_CONTRACT.md)
-- **WRITE는 절대 금지** — set/update/push/remove 사용 금지.
-- 실시간 경량화 대상(예: 알림 뱃지 카운트, 채팅) 한정으로 도입.
+- ✅ Firebase JS SDK (web) 도입 (Expo Managed 호환, config plugin 없음)
+- ✅ 시범 path 1개: `/notifications/{userId}` — 변화 시 REST refetch 트리거
+- ✅ Write helper 0건 (set/update/push/remove 사용 0건 — `firebase/database`에서 `onValue`/`off`만 import)
+- 이월: 다른 path (post_stats, comment_stats, post_feeds), Custom Token 인증 흐름, audit 경고 처리
+- 상세: [13_RTDB_SUBSCRIPTION_REPORT.md](13_RTDB_SUBSCRIPTION_REPORT.md)
 
 ### Cycle I — Reserved Screens
 - 학생증 OCR(`/v1/auth/student-card/verify`), AI Refine(`/v1/ai/refine`), Recap(`/v1/recap/...`)
