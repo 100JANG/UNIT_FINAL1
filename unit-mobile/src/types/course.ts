@@ -27,6 +27,29 @@ export type CourseDetailDto = {
   recommendRate: number;
 };
 
+/** Request body for POST /v1/courses/{courseId}/reviews. */
+export type CourseReviewVote = 'RECOMMEND' | 'NOT_RECOMMEND' | 'SKIP';
+
+export type CreateCourseReviewRequest = {
+  vote: CourseReviewVote;
+  /** Optional, ≤ 200 chars (backend validation). */
+  comment?: string;
+};
+
+/** Response of POST /v1/courses/{courseId}/reviews. */
+export type CourseReviewCreatedResponseDto = {
+  reviewId: string;
+  courseId: string;
+  stats: {
+    recommend: number;
+    notRecommend: number;
+    skip: number;
+    total: number;
+    /** 0..1 — multiply by 100 for percent display. */
+    recommendRate: number;
+  };
+};
+
 // ---- UI shapes --------------------------------------------------------------
 
 export type CourseSummary = {

@@ -48,7 +48,7 @@
 - API:
   - ✅ `GET /v1/courses` — **Cycle 4 완료** ([09_COURSES_CONNECTION_REPORT.md](09_COURSES_CONNECTION_REPORT.md))
   - ✅ `GET /v1/courses/{courseId}` — **Cycle 4 완료**
-  - ⏳ `POST /v1/courses/{courseId}/reviews` — Cycle 5
+  - ✅ `POST /v1/courses/{courseId}/reviews` — **Cycle 5 완료** ([10_COURSE_REVIEW_WRITE_REPORT.md](10_COURSE_REVIEW_WRITE_REPORT.md))
 - 주의: `REVIEW_QUOTA_REQUIRED` (422) → 토스트가 아니라 `CourseReview` 화면으로 라우팅 (Cycle 4에서 정착).
 - ✅ Course route 타입 number → string 마이그레이션 완료 (Cycle 4).
 

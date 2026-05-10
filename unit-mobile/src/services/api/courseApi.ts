@@ -8,8 +8,11 @@ import { mapCourseDetail, mapCourseSummary } from './mappers/courseMapper';
 import type {
   CourseDetailDto,
   CourseDetailUi,
+  CourseReviewCreatedResponseDto,
+  CourseReviewVote,
   CourseSummary,
   CourseSummaryDto,
+  CreateCourseReviewRequest,
 } from '../../types/course';
 
 export type GetCoursesParams = {
@@ -62,4 +65,30 @@ export async function getCourseDetail(courseId: string): Promise<CourseDetailUi>
     `/courses/${encodeURIComponent(courseId)}`,
   );
   return mapCourseDetail(dto);
+}
+
+export type CreateCourseReviewParams = {
+  courseId: string;
+  vote: CourseReviewVote;
+  /** Optional ≤ 200 chars. */
+  comment?: string;
+};
+
+/**
+ * POST /v1/courses/{courseId}/reviews
+ *
+ * Errors:
+ * - VALIDATION_FAILED — vote required, comment > 200 chars
+ * - NOT_FOUND — course doesn't exist
+ * - BUSINESS_RULE_VIOLATION — viewer has already submitted a review for this course
+ */
+export async function createCourseReview(
+  params: CreateCourseReviewParams,
+): Promise<CourseReviewCreatedResponseDto> {
+  const body: CreateCourseReviewRequest = { vote: params.vote };
+  if (params.comment !== undefined) body.comment = params.comment;
+  return apiClient.post<CourseReviewCreatedResponseDto>(
+    `/courses/${encodeURIComponent(params.courseId)}/reviews`,
+    body,
+  );
 }
